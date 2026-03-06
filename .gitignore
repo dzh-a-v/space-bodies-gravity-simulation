@@ -1,0 +1,3 @@
+# Ignore all files in tz folder except tz.pdf
+tz/*
+!tz/tz.pdf
