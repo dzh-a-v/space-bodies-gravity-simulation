@@ -7,6 +7,20 @@
 namespace physics {
 
 /**
+ * @brief Detected collision or near-collision event
+ */
+struct CollisionEvent {
+    size_t bodyIdx1;
+    size_t bodyIdx2;
+    double distance;          // Current distance between centers
+    double combinedRadius;    // R1 + R2
+    double relativeVelocity;  // |v1 - v2|
+    bool isApproaching;       // Are bodies getting closer?
+    bool isContact;           // Are bodies actually touching?
+    bool isNearContact;       // Are bodies very close (within 10% of combined radius)?
+};
+
+/**
  * @brief Detects collisions between celestial bodies
  */
 class CollisionDetector {
@@ -22,9 +36,9 @@ public:
     /**
      * @brief Find all colliding pairs in the system
      * @param bodies All bodies to check
-     * @return Vector of pairs (indices of colliding bodies)
+     * @return Vector of CollisionEvent structures
      */
-    static std::vector<std::pair<size_t, size_t>> findCollisions(
+    static std::vector<CollisionEvent> findCollisions(
         const std::vector<CelestialBody*>& bodies);
 
     /**
@@ -33,8 +47,16 @@ public:
      * @param body2 Second body
      * @return |v1 - v2| (m/s)
      */
-    static double calculateRelativeVelocity(const CelestialBody& body1, 
+    static double calculateRelativeVelocity(const CelestialBody& body1,
                                             const CelestialBody& body2);
+
+    /**
+     * @brief Check if bodies are approaching each other
+     * @param body1 First body
+     * @param body2 Second body
+     * @return true if distance is decreasing
+     */
+    static bool areApproaching(const CelestialBody& body1, const CelestialBody& body2);
 };
 
 } // namespace physics

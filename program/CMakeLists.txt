@@ -69,6 +69,21 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 if(USE_QT6)
     target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets)
+    
+    # Find windeployqt executable
+    get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt_bin_dir}")
+    
+    # Run windeployqt after build to copy Qt dependencies
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${WINDEPLOYQT_EXECUTABLE}" 
+                --qmldir "${CMAKE_SOURCE_DIR}"
+                $<$<CONFIG:Debug>:--debug>
+                $<$<CONFIG:Release>:--release>
+                $<TARGET_FILE:${PROJECT_NAME}>
+        COMMENT "Deploying Qt dependencies..."
+    )
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR})

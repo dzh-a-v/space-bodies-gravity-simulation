@@ -41,22 +41,17 @@ CollisionResult CollisionResolver::resolve(const CelestialBody& body1,
     double massRatio = calculateMassRatio(body1, body2);
     double relVelocity = CollisionDetector::calculateRelativeVelocity(body1, body2);
     double escapeVel = calculateEscapeVelocity(body1, body2);
-    
-    // Find indices (assume idx1 < idx2 for consistency)
-    // These will be set by the caller in SimulationEngine
-    
+
     if (massRatio < MERGE_RATIO_THRESHOLD) {
         // Always merge when mass ratio < 1/100
-        // The smaller body merges into the larger one
         return createMerge(body1, body2, 0, 1);
     }
     else if (massRatio < PROBABILISTIC_RATIO_THRESHOLD) {
         // Probabilistic: probability of fragmentation proportional to mass ratio
-        // P(fragment) = (ratio - 1/100) / (1/10 - 1/100) = (ratio - 0.01) / 0.09
         std::uniform_real_distribution<double> dist(0.0, 1.0);
-        double fragmentProb = (massRatio - MERGE_RATIO_THRESHOLD) / 
+        double fragmentProb = (massRatio - MERGE_RATIO_THRESHOLD) /
                               (PROBABILISTIC_RATIO_THRESHOLD - MERGE_RATIO_THRESHOLD);
-        
+
         if (dist(m_rng) < fragmentProb) {
             return createFragments(body1, body2, 0, 1, currentObjectCount);
         } else {
@@ -71,6 +66,52 @@ CollisionResult CollisionResolver::resolve(const CelestialBody& body1,
             return createMerge(body1, body2, 0, 1);
         }
     }
+}
+
+CollisionResult CollisionResolver::resolveNearCollision(const CollisionEvent& event,
+                                                         const CelestialBody& body1,
+                                                         const CelestialBody& body2,
+                                                         int currentObjectCount) {
+    // Pre-collision fragmentation: the smaller body breaks up before impact
+    // This happens when bodies are very close (within 10% of combined radius)
+    // and approaching each other
+    
+    CollisionResult result;
+    
+    // Determine which body is smaller (it will fragment)
+    const CelestialBody* smallerBody = (body1.getMass() < body2.getMass()) ? &body1 : &body2;
+    const CelestialBody* largerBody = (body1.getMass() >= body2.getMass()) ? &body1 : &body2;
+    size_t smallerIdx = (smallerBody == &body1) ? 0 : 1;
+    size_t largerIdx = (largerBody == &body1) ? 0 : 1;
+    
+    // Check if smaller body can fragment
+    if (smallerBody->getMass() < MIN_FRAGMENTATION_MASS || !smallerBody->canFragment()) {
+        // Can't fragment, will merge on actual contact
+        result.type = CollisionResult::NO_ACTION;
+        return result;
+    }
+    
+    // Fragment the smaller body
+    result.type = CollisionResult::PRE_FRAGMENT;
+    result.bodyToRemove1 = smallerIdx;
+    result.bodyToRemove2 = 999;  // Larger body stays (invalid index, won't be removed)
+    
+    // Calculate how many fragments
+    int maxNewObjects = MAX_TOTAL_OBJECTS - currentObjectCount + 1;  // +1 because we remove 1
+    int actualFragments = std::min(m_fragmentCount, maxNewObjects);
+    
+    if (actualFragments < MIN_FRAGMENTS) {
+        result.type = CollisionResult::NO_ACTION;
+        return result;
+    }
+    
+    // Generate fragments from smaller body
+    // Fragments inherit smaller body's velocity and acceleration
+    result.newBodies = generateFragmentsWithParent(*smallerBody, actualFragments, 
+                                                    smallerBody->getVelocity(), 
+                                                    smallerBody->getAcceleration());
+    
+    return result;
 }
 
 CollisionResult CollisionResolver::createMerge(const CelestialBody& body1,
@@ -176,34 +217,36 @@ std::vector<std::unique_ptr<CelestialBody>> CollisionResolver::generateFragments
     
     std::vector<std::unique_ptr<CelestialBody>> fragments;
     fragments.reserve(count);
-    
+
     // Calculate fragment properties
     double fragmentMass = parent.getMass() / count;
     double density = parent.getDensity();
     double fragmentVolume = fragmentMass / density;
     double fragmentRadius = std::cbrt(fragmentVolume * 3.0 / (4.0 * M_PI));
-    
+
     // Create fragments with slight velocity dispersion
     std::normal_distribution<double> velocityDispersion(0.0, 10.0);  // m/s dispersion
-    
+    std::uniform_real_distribution<double> positionOffset(0.0, 0.5);  // fraction of parent radius
+
     for (int i = 0; i < count; ++i) {
         std::string fragmentName = parent.getName() + "_" + std::to_string(i + 1);
-        
-        // Position: spread around parent position
+
+        // Position: spread within parent's radius (fragments come from inside the parent)
         Vector3D parentPos = parent.getPosition();
+        double maxOffset = parent.getRadius() * 0.5;  // fragments within half parent radius
         Vector3D fragmentPos(
-            parentPos.x + velocityDispersion(m_rng) * fragmentRadius,
-            parentPos.y + velocityDispersion(m_rng) * fragmentRadius,
-            parentPos.z + velocityDispersion(m_rng) * fragmentRadius
+            parentPos.x + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1),
+            parentPos.y + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1),
+            parentPos.z + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1)
         );
-        
+
         // Velocity: parent velocity + small dispersion
         Vector3D fragmentVel(
             parent.getVelocity().x + velocityDispersion(m_rng),
             parent.getVelocity().y + velocityDispersion(m_rng),
             parent.getVelocity().z + velocityDispersion(m_rng)
         );
-        
+
         auto fragment = std::make_unique<CelestialBody>(
             fragmentName,
             fragmentMass,
@@ -212,13 +255,67 @@ std::vector<std::unique_ptr<CelestialBody>> CollisionResolver::generateFragments
             fragmentVel,
             Vector3D()
         );
-        
+
         // Fragments cannot fragment again
         fragment->setCanFragment(false);
-        
+
         fragments.push_back(std::move(fragment));
     }
-    
+
+    return fragments;
+}
+
+std::vector<std::unique_ptr<CelestialBody>> CollisionResolver::generateFragmentsWithParent(
+    const CelestialBody& parent, int count, 
+    const Vector3D& inheritVelocity, const Vector3D& inheritAcceleration) {
+
+    std::vector<std::unique_ptr<CelestialBody>> fragments;
+    fragments.reserve(count);
+
+    // Calculate fragment properties
+    double fragmentMass = parent.getMass() / count;
+    double density = parent.getDensity();
+    double fragmentVolume = fragmentMass / density;
+    double fragmentRadius = std::cbrt(fragmentVolume * 3.0 / (4.0 * M_PI));
+
+    // Create fragments with slight velocity dispersion
+    std::normal_distribution<double> velocityDispersion(0.0, 10.0);  // m/s dispersion
+    std::uniform_real_distribution<double> positionOffset(0.0, 0.5);  // fraction of parent radius
+
+    for (int i = 0; i < count; ++i) {
+        std::string fragmentName = parent.getName() + "_" + std::to_string(i + 1);
+
+        // Position: spread within parent's radius (fragments come from inside the parent)
+        Vector3D parentPos = parent.getPosition();
+        double maxOffset = parent.getRadius() * 0.5;  // fragments within half parent radius
+        Vector3D fragmentPos(
+            parentPos.x + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1),
+            parentPos.y + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1),
+            parentPos.z + positionOffset(m_rng) * maxOffset * (m_rng() % 2 ? 1 : -1)
+        );
+
+        // Velocity: INHERIT parent velocity + small dispersion (conserves momentum)
+        Vector3D fragmentVel(
+            inheritVelocity.x + velocityDispersion(m_rng),
+            inheritVelocity.y + velocityDispersion(m_rng),
+            inheritVelocity.z + velocityDispersion(m_rng)
+        );
+
+        auto fragment = std::make_unique<CelestialBody>(
+            fragmentName,
+            fragmentMass,
+            fragmentRadius,
+            fragmentPos,
+            fragmentVel,
+            inheritAcceleration  // INHERIT parent acceleration
+        );
+
+        // Fragments cannot fragment again
+        fragment->setCanFragment(false);
+
+        fragments.push_back(std::move(fragment));
+    }
+
     return fragments;
 }
 

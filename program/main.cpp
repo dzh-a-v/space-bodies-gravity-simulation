@@ -62,11 +62,15 @@ void runBasicTest() {
         engine.step(dt);
         
         if (i % 100 == 0) {
-            auto stats = engine.getStats();
             auto bodies = engine.getBodies();
-            std::cout << "Step " << i << ": Moon position = (" 
-                      << bodies[1]->getPosition().x / 1e6 << " Mm, "
-                      << bodies[1]->getPosition().y / 1e6 << " Mm)" << std::endl;
+            std::cout << "\n--- Step " << i << " ---" << std::endl;
+            for (const auto& body : bodies) {
+                const auto& pos = body->getPosition();
+                std::cout << "  " << body->getName() 
+                          << ": (" << pos.x / 1e6 << " Mm, "
+                          << pos.y / 1e6 << " Mm, "
+                          << pos.z / 1e6 << " Mm)" << std::endl;
+            }
         }
     }
 
@@ -76,8 +80,8 @@ void runBasicTest() {
     // Test CSV export
     std::cout << "\n=== Testing CSV Export ===" << std::endl;
     std::string csv = CSVSerializer::serialize(engine.getBodies());
-    std::cout << "CSV output (first 200 chars):" << std::endl;
-    std::cout << csv.substr(0, std::min(csv.size(), size_t(200))) << "..." << std::endl;
+    std::cout << "CSV output (first 300 chars):" << std::endl;
+    std::cout << csv.substr(0, std::min(csv.size(), size_t(300))) << "..." << std::endl;
 }
 
 void runCollisionTest() {
@@ -116,15 +120,31 @@ void runCollisionTest() {
         engine.step(dt);
         
         auto currentBodies = engine.getBodies();
-        if (currentBodies.size() < 2) {
-            std::cout << "Collision occurred at step " << i << std::endl;
-            break;
-        }
         
-        if (i % 10000 == 0) {
-            std::cout << "Step " << i << ": Distance = " 
-                      << currentBodies[0]->getPosition().distanceTo(currentBodies[1]->getPosition()) / 1e3 
-                      << " km" << std::endl;
+        // Print status at intervals
+        if (i % 10000 == 0 || currentBodies.size() > 2) {
+            std::cout << "\n=== Step " << i << " ===" << std::endl;
+            std::cout << "Object count: " << currentBodies.size() << std::endl;
+            
+            for (size_t j = 0; j < currentBodies.size(); ++j) {
+                const auto& body = currentBodies[j];
+                const auto& pos = body->getPosition();
+                const auto& vel = body->getVelocity();
+                std::cout << "  [" << j << "] " << body->getName() 
+                          << ": pos=(" << pos.x / 1e3 << " km, " 
+                          << pos.y / 1e3 << " km, " 
+                          << pos.z / 1e3 << " km)"
+                          << ", vel=(" << vel.x << ", " << vel.y << ", " << vel.z << ") m/s"
+                          << ", mass=" << body->getMass() / 1e20 << "e20 kg"
+                          << ", radius=" << body->getRadius() / 1e3 << " km"
+                          << std::endl;
+            }
+            
+            // Stop after fragmentation to avoid too much output
+            if (currentBodies.size() > 2) {
+                std::cout << "\n(Fragmentation occurred - stopping early)" << std::endl;
+                break;
+            }
         }
     }
 
