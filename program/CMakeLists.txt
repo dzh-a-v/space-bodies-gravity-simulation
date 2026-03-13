@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Qt6 is optional for now (needed only for GUI phase)
-set(USE_QT6 OFF CACHE BOOL "Use Qt6 for GUI")
+set(USE_QT6 ON CACHE BOOL "Use Qt6 for GUI")
 
 if(USE_QT6)
     set(CMAKE_AUTOMOC ON)
@@ -52,17 +52,27 @@ set(IO_HEADERS
     io/CSVSerializer.h
 )
 
+set(GUI_SOURCES
+    gui/MainWindow.cpp
+)
+
+set(GUI_HEADERS
+    gui/MainWindow.h
+)
+
 set(SOURCES
     main.cpp
     ${PHYSICS_SOURCES}
     ${SIMULATION_SOURCES}
     ${IO_SOURCES}
+    ${GUI_SOURCES}
 )
 
 set(HEADERS
     ${PHYSICS_HEADERS}
     ${SIMULATION_HEADERS}
     ${IO_HEADERS}
+    ${GUI_HEADERS}
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})

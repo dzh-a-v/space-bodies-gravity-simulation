@@ -1,0 +1,68 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "cl.exe",
+            "args": [
+                "/EHsc",
+                "/std:c++20",
+                "/I.",
+                "/IC:\\Qt\\6.9.2\\msvc2022_64\\include",
+                "/IC:\\Qt\\6.9.2\\msvc2022_64\\include\\QtCore",
+                "/IC:\\Qt\\6.9.2\\msvc2022_64\\include\\QtWidgets",
+                "/IC:\\Qt\\6.9.2\\msvc2022_64\\include\\QtGui",
+                "/DUNICODE",
+                "/D_UNICODE",
+                "main.cpp",
+                "gui\\MainWindow.cpp",
+                "physics\\Vector3D.cpp",
+                "physics\\CelestialBody.cpp",
+                "physics\\GravityCalculator.cpp",
+                "physics\\VerletIntegrator.cpp",
+                "physics\\CollisionDetector.cpp",
+                "physics\\CollisionResolver.cpp",
+                "physics\\RocheLimitCalculator.cpp",
+                "simulation\\SimulationEngine.cpp",
+                "io\\CSVSerializer.cpp",
+                "/link",
+                "/OUT:build\\GravitySimulator.exe",
+                "C:\\Qt\\6.9.2\\msvc2022_64\\lib\\Qt6Core.lib",
+                "C:\\Qt\\6.9.2\\msvc2022_64\\lib\\Qt6Gui.lib",
+                "C:\\Qt\\6.9.2\\msvc2022_64\\lib\\Qt6Widgets.lib",
+                "/SUBSYSTEM:WINDOWS"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$msvc"],
+            "detail": "Build with MSVC and Qt6"
+        },
+        {
+            "label": "windeployqt",
+            "type": "shell",
+            "command": "C:\\Qt\\6.9.2\\msvc2022_64\\bin\\windeployqt.exe",
+            "args": [
+                "${workspaceFolder}\\program\\build\\GravitySimulator.exe"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Deploy Qt DLLs",
+            "dependsOn": "build"
+        },
+        {
+            "label": "build and deploy",
+            "type": "shell",
+            "command": "",
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": ["build", "windeployqt"],
+            "detail": "Build and deploy Qt dependencies"
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "cppvsdebug",
+            "request": "launch",
+            "program": "${workspaceFolder}\\program\\build\\GravitySimulator.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}\\program",
+            "console": "externalTerminal",
+            "preLaunchTask": "build and deploy",
+            "env": {
+                "PATH": "C:\\Qt\\6.9.2\\msvc2022_64\\bin;${env:PATH}"
+            }
+        }
+    ]
+}
