@@ -3,6 +3,7 @@ import pytest
 from gravity_sim.core.body import Body
 from gravity_sim.io.csv_loader import CsvScenarioError, load_bodies_from_csv
 from gravity_sim.io.csv_saver import save_bodies_to_csv
+from gravity_sim.io.presets import list_presets, load_preset
 
 
 def test_csv_round_trip(tmp_path):
@@ -59,3 +60,15 @@ def test_csv_rejects_non_numeric_values(tmp_path):
 
     with pytest.raises(CsvScenarioError):
         load_bodies_from_csv(path)
+
+
+def test_all_packaged_presets_load_and_match_schema():
+    presets = list_presets()
+
+    assert "inner_solar_system_like.csv" in presets
+    assert "mars_moons.csv" in presets
+    assert "roche_limit_demo.csv" in presets
+    assert "three_body_orbits.csv" in presets
+
+    for preset in presets:
+        load_preset(preset)

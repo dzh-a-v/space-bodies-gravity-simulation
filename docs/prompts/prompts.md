@@ -369,3 +369,31 @@ program/
 - При переходе к выполнению нужно создать `docs/plan/plan.md` с этим планом и, если требуется соблюдать `instructions.md`, отдельно записать промпт и ответ в `docs/prompts/prompts.md`.
 ___
 ___
+add more presents like solar system e.g.
+
+run and test if the program works properly
+___
+Done. I added more built-in **presets**:
+
+- `inner_solar_system_like.csv`
+- `mars_moons.csv`
+- `roche_limit_demo.csv`
+- `three_body_orbits.csv`
+
+I also updated [program/README.md](C:/spbpu/year2/digal/program/README.md) with the preset list and noted that the solar-system-like preset cannot use the real Sun because the ТЗ excludes stars and caps mass at `1e26 kg`.
+
+Tested successfully:
+
+```powershell
+py -m pytest
+# 21 passed
+
+py -m compileall src tests
+# success
+```
+
+I also ran a GUI smoke test in offscreen mode: it loaded `inner_solar_system_like.csv`, created 5 bodies, refreshed the UI, and advanced the simulation by 60 seconds successfully.
+
+Prompt log updated in [docs/prompts/prompts.md](C:/spbpu/year2/digal/docs/prompts/prompts.md).
+___
+___

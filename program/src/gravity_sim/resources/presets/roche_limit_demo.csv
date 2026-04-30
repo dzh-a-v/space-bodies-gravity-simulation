@@ -1,0 +1,3 @@
+name,mass,radius,x,y,z,vx,vy,vz,ax,ay,az
+Primary,1.0e25,2.0e6,0,0,0,0,0,0,0,0,0
+Satellite,2.0e15,1.0e4,3.0e7,0,0,0,4716.0,0,0,0,0
