@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from time import monotonic
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
@@ -34,6 +35,8 @@ class MainWindow(QMainWindow):
         self.engine = create_default_engine()
         self.engine.rng = random.Random(0)
         self.running = False
+        self._last_refresh_at = 0.0
+        self._refresh_interval_seconds = 1.0 / 20.0
 
         presets = list_presets()
         self.controls = ControlsPanel(presets)
@@ -81,7 +84,7 @@ class MainWindow(QMainWindow):
 
         if presets:
             self._load_preset(presets[0])
-        self._refresh()
+        self._refresh(force=True)
 
     def _apply_settings(self, time_step: float, time_scale: float, fragment_count: int) -> None:
         self.engine.state.settings.time_step = time_step
@@ -103,7 +106,7 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self.controls.set_running(False)
         self.engine.reset()
-        self._refresh()
+        self._refresh(force=True)
 
     def _tick(self) -> None:
         try:
@@ -111,9 +114,14 @@ class MainWindow(QMainWindow):
         except (ValidationError, ValueError) as exc:
             self._pause()
             show_error(self, "Simulation error", str(exc))
-        self._refresh()
+        self._refresh(force=False)
 
-    def _refresh(self) -> None:
+    def _refresh(self, force: bool = True) -> None:
+        now = monotonic()
+        if not force and now - self._last_refresh_at < self._refresh_interval_seconds:
+            return
+        self._last_refresh_at = now
+
         bodies = self.engine.state.bodies
         self.controls.set_elapsed_time(self.engine.state.time_seconds)
         self.table_model.set_bodies(bodies)
@@ -132,7 +140,7 @@ class MainWindow(QMainWindow):
             bodies.append(dialog.body())
             validate_bodies(bodies)
             self.engine.set_bodies(bodies)
-            self._refresh()
+            self._refresh(force=True)
         except (ValueError, ValidationError) as exc:
             show_error(self, "Body error", str(exc))
 
@@ -144,7 +152,7 @@ class MainWindow(QMainWindow):
             return
         try:
             self.engine.set_bodies(load_bodies_from_csv(path))
-            self._refresh()
+            self._refresh(force=True)
         except (CsvScenarioError, OSError) as exc:
             show_error(self, "CSV error", str(exc))
 
@@ -162,6 +170,6 @@ class MainWindow(QMainWindow):
             return
         try:
             self.engine.set_bodies(load_preset(name))
-            self._refresh()
+            self._refresh(force=True)
         except (CsvScenarioError, OSError) as exc:
             show_error(self, "Preset error", str(exc))

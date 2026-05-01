@@ -45,12 +45,5 @@ class ProjectionView(QWidget):
         x = np.array([body.position[self._axis_x] for body in bodies], dtype=float)
         y = np.array([body.position[self._axis_y] for body in bodies], dtype=float)
         sizes = np.array([max(6.0, min(24.0, body.radius / 1.0e6)) for body in bodies])
-        spots = [
-            {
-                "pos": (x[index], y[index]),
-                "size": sizes[index],
-                "brush": pg.mkBrush(*(body.color or (80, 170, 255)), 220),
-            }
-            for index, body in enumerate(bodies)
-        ]
-        self.scatter.setData(spots)
+        brushes = [pg.mkBrush(*(body.color or (80, 170, 255)), 220) for body in bodies]
+        self.scatter.setData(x=x, y=y, size=sizes, brush=brushes)

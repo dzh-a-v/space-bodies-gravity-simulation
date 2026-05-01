@@ -6,12 +6,12 @@ import random
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.colors import initial_palette
+from gravity_sim.core.snapshot import bodies_to_snapshot, snapshot_to_bodies
 from gravity_sim.core.system_state import SimulationSettings, SystemState
 from gravity_sim.core.validation import validate_bodies, validate_fragment_count
 
+from .backends import PhysicsBackend, create_best_backend
 from .collisions import resolve_collisions
-from .gravity import DirectGravitySolver, GravitySolver
-from .integrators import velocity_verlet_step
 from .roche import apply_roche_limit
 
 
@@ -19,11 +19,11 @@ class SimulationEngine:
     def __init__(
         self,
         state: SystemState | None = None,
-        solver: GravitySolver | None = None,
+        backend: PhysicsBackend | None = None,
         rng: random.Random | None = None,
     ) -> None:
         self.state = state or SystemState()
-        self.solver = solver or DirectGravitySolver()
+        self.backend = backend or create_best_backend()
         self.rng = rng or random.Random()
         self._initial_state = self.state.copy()
 
@@ -46,15 +46,25 @@ class SimulationEngine:
         if dt <= 0:
             return self.state
 
-        velocity_verlet_step(self.state.bodies, dt, self.solver)
-        self.state.bodies = resolve_collisions(self.state.bodies, self.state.settings, self.rng)
-        self.state.bodies = apply_roche_limit(self.state.bodies, self.state.settings, dt)
-        self.recompute_accelerations()
+        snapshot = bodies_to_snapshot(self.state.bodies)
+        step_result = self.backend.step(snapshot, dt)
+        snapshot_to_bodies(step_result.snapshot, self.state.bodies)
+
+        before_events = _body_identity_signature(self.state.bodies)
+        after_collisions = resolve_collisions(self.state.bodies, self.state.settings, self.rng)
+        after_roche = apply_roche_limit(after_collisions, self.state.settings, dt)
+        after_events = _body_identity_signature(after_roche)
+        self.state.bodies = after_roche
+
+        if before_events != after_events:
+            self.recompute_accelerations()
+
         self.state.time_seconds += dt
         return self.state
 
     def recompute_accelerations(self) -> None:
-        accelerations = self.solver.compute_accelerations(self.state.bodies)
+        snapshot = bodies_to_snapshot(self.state.bodies)
+        accelerations = self.backend.compute_accelerations(snapshot)
         for body, acceleration in zip(self.state.bodies, accelerations, strict=True):
             body.acceleration = acceleration
 
@@ -65,3 +75,7 @@ class SimulationEngine:
 
 def create_default_engine() -> SimulationEngine:
     return SimulationEngine(SystemState(settings=SimulationSettings()))
+
+
+def _body_identity_signature(bodies: list[Body]) -> tuple[int, ...]:
+    return tuple(id(body) for body in bodies)

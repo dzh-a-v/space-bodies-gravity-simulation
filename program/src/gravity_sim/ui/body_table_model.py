@@ -28,9 +28,22 @@ class BodyTableModel(QAbstractTableModel):
         self._bodies = bodies or []
 
     def set_bodies(self, bodies: list[Body]) -> None:
+        if self._has_same_rows(bodies):
+            self._bodies = bodies
+            if self._bodies:
+                top_left = self.index(0, 0)
+                bottom_right = self.index(len(self._bodies) - 1, len(self.HEADERS) - 1)
+                self.dataChanged.emit(top_left, bottom_right, [Qt.DisplayRole])
+            return
+
         self.beginResetModel()
         self._bodies = bodies
         self.endResetModel()
+
+    def _has_same_rows(self, bodies: list[Body]) -> bool:
+        if len(self._bodies) != len(bodies):
+            return False
+        return all(left.name == right.name for left, right in zip(self._bodies, bodies, strict=True))
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._bodies)

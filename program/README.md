@@ -19,6 +19,35 @@ python -m pip install -e .[dev]
 gravity-sim
 ```
 
+The app uses the optional C++ backend when it was built successfully. If no C++
+compiler is available, installation still works and the simulator falls back to
+the vectorized Python backend.
+
+## Performance
+
+Physics runs behind a backend interface:
+
+- `CppExactBackend`: exact Newtonian `O(n^2)` gravity and Velocity Verlet in C++.
+- `PythonBackend`: exact vectorized `numpy` fallback.
+
+Run the benchmark:
+
+```powershell
+cd program
+gravity-sim-benchmark
+```
+
+Useful variants:
+
+```powershell
+gravity-sim-benchmark --counts 100,500,1000 --repeats 5
+gravity-sim-benchmark --counts 500 --include-gui
+```
+
+For scenarios with tens of thousands of bodies, exact `O(n^2)` gravity will
+still become expensive. The current backend interface is designed so a future
+Barnes-Hut backend can be added without replacing the GUI.
+
 ## Built-In Presets
 
 The GUI loads CSV presets from `src/gravity_sim/resources/presets/`.
