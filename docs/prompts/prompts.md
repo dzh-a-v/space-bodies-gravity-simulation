@@ -124,6 +124,20 @@ Python + `numpy` для расчётов, `PySide6` для интерфейса,
 Главный технический риск: лимит до `1e5` объектов плохо сочетается с прямой ньютоновской гравитацией `O(n²)`. Поэтому я бы заложил интерфейс `GravitySolver`, чтобы начать с простого точного решения, но без боли заменить его на Barnes-Hut для больших систем.
 ___
 ___
+# Context from my IDE setup:
+
+## Active file: TODO.md
+
+## Open tabs:
+- TODO.md: TODO.md
+
+## My request for Codex:
+- добавь счётчик времени от начала симуляции
+- сделай так, чтобы все объекты изначально были разных цветов КРОМЕ БЕЛОГО, а при расколе осколки сохраняют цвет родительского объекта, а когда два объекта сливаются в один он остановится белым
+___
+Добавлен счётчик модельного времени в панель управления GUI. В модель `Body` добавлен цвет; при загрузке/создании начального сценария всем объектам назначаются уникальные небелые цвета, фрагменты наследуют цвет родителя, а результат слияния получает белый цвет. Отрисовка трёх проекций теперь использует индивидуальный цвет каждого объекта. Добавлены тесты для цветовых правил. Проверки: `py -m pytest` — 24 passed; `py -m compileall src tests` — успешно; GUI smoke-test в offscreen-режиме — успешно, счётчик после шага 60 секунд показал `00:01:00`.
+___
+___
 главное --- чтобы проект соответствовал тз. небольшие отличия или нововведения допустимы (но не рекомендуются).
 
 напиши план по созданию проекта, его иерархии и т.д. в docs/plan/plan.md
@@ -395,5 +409,38 @@ py -m compileall src tests
 I also ran a GUI smoke test in offscreen mode: it loaded `inner_solar_system_like.csv`, created 5 bodies, refreshed the UI, and advanced the simulation by 60 seconds successfully.
 
 Prompt log updated in [docs/prompts/prompts.md](C:/spbpu/year2/digal/docs/prompts/prompts.md).
+___
+___
+- добавь счётчик времени от начала симуляции
+- сделай так, чтобы все объекты изначально были разных цветов КРОМЕ БЕЛОГО, а при расколе осколки сохраняют цвет родительского объекта, а когда два объекта сливаются в один он остановится белым
+___
+Готово.
+
+Добавил:
+- счётчик времени от начала симуляции в панели управления;
+- уникальные стартовые цвета для всех объектов, кроме белого;
+- наследование цвета при расколе;
+- белый цвет для объекта, получившегося после слияния;
+- индивидуальные цвета объектов в трёх 2D-проекциях;
+- тесты для цветовых правил.
+
+Ключевые файлы:
+- [colors.py](C:/spbpu/year2/digal/program/src/gravity_sim/core/colors.py)
+- [body.py](C:/spbpu/year2/digal/program/src/gravity_sim/core/body.py)
+- [fragmentation.py](C:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py)
+- [controls_panel.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/controls_panel.py)
+- [projection_view.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/projection_view.py)
+- [test_colors.py](C:/spbpu/year2/digal/program/tests/test_colors.py)
+
+Проверки:
+```powershell
+py -m pytest
+# 24 passed
+
+py -m compileall src tests
+# success
+```
+
+Ещё прогнал GUI smoke-test в offscreen-режиме: пресет загрузился, цвета проверились, шаг 60 секунд отработал, счётчик показал `00:01:00`.
 ___
 ___

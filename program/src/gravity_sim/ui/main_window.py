@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
 
     def _refresh(self) -> None:
         bodies = self.engine.state.bodies
+        self.controls.set_elapsed_time(self.engine.state.time_seconds)
         self.table_model.set_bodies(bodies)
         for projection in self.projections.values():
             projection.set_bodies(bodies)

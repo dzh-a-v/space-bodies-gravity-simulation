@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 
 from gravity_sim.core.body import Body
+from gravity_sim.core.colors import initial_palette
 from gravity_sim.core.system_state import SimulationSettings, SystemState
 from gravity_sim.core.validation import validate_bodies, validate_fragment_count
 
@@ -28,6 +29,7 @@ class SimulationEngine:
 
     def set_bodies(self, bodies: list[Body]) -> None:
         self.state.bodies = validate_bodies(bodies)
+        self._assign_initial_colors()
         self.state.time_seconds = 0.0
         self._initial_state = self.state.copy()
         self.recompute_accelerations()
@@ -55,6 +57,10 @@ class SimulationEngine:
         accelerations = self.solver.compute_accelerations(self.state.bodies)
         for body, acceleration in zip(self.state.bodies, accelerations, strict=True):
             body.acceleration = acceleration
+
+    def _assign_initial_colors(self) -> None:
+        for body, color in zip(self.state.bodies, initial_palette(len(self.state.bodies)), strict=True):
+            body.color = color
 
 
 def create_default_engine() -> SimulationEngine:

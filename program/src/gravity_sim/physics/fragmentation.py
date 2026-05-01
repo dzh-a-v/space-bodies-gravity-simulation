@@ -5,6 +5,7 @@ from __future__ import annotations
 from math import cos, pi, sin
 
 from gravity_sim.core.body import Body
+from gravity_sim.core.colors import WHITE
 from gravity_sim.core.constants import MIN_FRAGMENTABLE_MASS, MIN_FRAGMENTS
 from gravity_sim.core.validation import validate_fragment_count
 from gravity_sim.core.vector import vector3
@@ -66,6 +67,7 @@ def create_fragments(
                 velocity=parent.velocity + direction,
                 acceleration=parent.acceleration.copy(),
                 is_fragment=True,
+                color=parent.color,
             )
         )
 
@@ -93,4 +95,5 @@ def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) ->
         velocity=velocity,
         acceleration=vector3(),
         is_fragment=left.is_fragment or right.is_fragment,
+        color=WHITE,
     )

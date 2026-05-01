@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from math import pi
 
+from .colors import Color
 from .vector import Vector3, vector3
 
 
@@ -17,6 +18,7 @@ class Body:
     velocity: Vector3
     acceleration: Vector3 = field(default_factory=vector3)
     is_fragment: bool = False
+    color: Color | None = None
     roche_exposure_seconds: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -44,5 +46,6 @@ class Body:
             velocity=self.velocity.copy(),
             acceleration=self.acceleration.copy(),
             is_fragment=self.is_fragment,
+            color=self.color,
             roche_exposure_seconds=dict(self.roche_exposure_seconds),
         )

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -36,6 +37,7 @@ class ControlsPanel(QWidget):
         self.add_button = QPushButton("Add body")
         self.load_button = QPushButton("Load CSV")
         self.save_button = QPushButton("Save CSV")
+        self.elapsed_time = QLabel("Elapsed: 0 s")
 
         self.time_step = QDoubleSpinBox()
         self.time_step.setRange(0.001, 1.0e9)
@@ -64,6 +66,7 @@ class ControlsPanel(QWidget):
             file_row.addWidget(button)
 
         form = QFormLayout()
+        form.addRow("Elapsed", self.elapsed_time)
         form.addRow("Time step", self.time_step)
         form.addRow("Time scale", self.time_scale)
         form.addRow("Fragments", self.fragment_count)
@@ -90,6 +93,17 @@ class ControlsPanel(QWidget):
         self.add_button.setEnabled(not running)
         self.load_button.setEnabled(not running)
         self.preset_combo.setEnabled(not running)
+
+    def set_elapsed_time(self, seconds: float) -> None:
+        total_seconds = max(0, int(seconds))
+        days, remainder = divmod(total_seconds, 86_400)
+        hours, remainder = divmod(remainder, 3_600)
+        minutes, seconds = divmod(remainder, 60)
+        if days:
+            text = f"{days} d {hours:02}:{minutes:02}:{seconds:02}"
+        else:
+            text = f"{hours:02}:{minutes:02}:{seconds:02}"
+        self.elapsed_time.setText(text)
 
     def _emit_preset(self, _index: int | None = None) -> None:
         self.preset_requested.emit(self.preset_combo.currentText())
