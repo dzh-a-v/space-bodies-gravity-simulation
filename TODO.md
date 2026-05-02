@@ -1,6 +1,7 @@
 # fix
 - simulation with collision
 - the fragments unite too fast (maybe they shouldn't unite at all? or spawn more separately)
+- the fragments in close-Moon simulation fly somewhere too far from the Earth for some reason
 
 # check
 - collision
