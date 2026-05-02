@@ -759,3 +759,110 @@ ___
   ✔ Make table model editable
   ◻ Make table model editable
   ✔ Wire up editing in main window
+___
+___
+When objects get closer to each other they collide earlier than they visually      
+  touch. Check the way they are drawn on the coordinate planes and make their sizes  
+  correct  
+___
+I'll look into how bodies are drawn on the projection planes vs. how collisions are
+   detected.                                                                         
+                                                                                    
+  Read 1 file (ctrl+o to expand)                                                     
+                                                                                     
+● Found it. The scatter dots are sized in pixels (clamped 6–24 px), while collisions 
+  happen in meters. So a body whose true radius is, say, 1.5e9 m gets drawn as a 24
+  px dot regardless of zoom — much smaller than the actual collision radius. Let me  
+  check the collision logic to confirm what radius collisions use:                   
+                                                                                     
+  Read 1 file (ctrl+o to expand)                                                     
+                                                                                     
+● Confirmed: bodies_touch uses real meters (left.radius + right.radius). The fix is  
+  to draw the scatter spots with their true radius in data coordinates, not capped   
+  pixels.                                
+                                                                                     
+  In pyqtgraph ScatterPlotItem, set pxMode=False to make size interpret as data units
+   (diameter in meters). Then size = 2 * radius. Let me update:                      
+                                                                                     
+● Update(program\src\gravity_sim\ui\projection_view.py)                              
+  ⎿  Added 9 lines, removed 1 line                                                   
+      33          self.plot.showGrid(x=True, y=True, alpha=0.25)                     
+      34          self.plot.setLabel("bottom", plane[0], units="m")
+      35          self.plot.setLabel("left", plane[1], units="m")
+      36 -        self.scatter = pg.ScatterPlotItem(size=8, brush=pg.mkBrush(8       
+         -0, 170, 255, 210))                                                  
+      36 +        # pxMode=False makes `size` a diameter in data units (meters       
+         +), so a body                                                        
+      37 +        # is drawn at its true physical radius — matching the collis       
+         +ion test                                                                 
+      38 +        # `distance <= r_left + r_right`. With pxMode=True the dots      
+         +were a fixed                                                               
+      39 +        # pixel size, so bodies appeared to collide before visually        
+         +touching.                                                           
+      40 +        self.scatter = pg.ScatterPlotItem(                          
+      41 +            pxMode=False,                                           
+      42 +            pen=pg.mkPen(None),                                     
+      43 +            brush=pg.mkBrush(80, 170, 255, 210),                    
+      44 +        )                                                           
+      45          self.plot.addItem(self.scatter)
+      46          layout.addWidget(self.plot)
+      47  
+
+● Update(program\src\gravity_sim\ui\projection_view.py)                              
+  ⎿  Added 3 lines, removed 1 line      
+      52                                                                             
+      53          x = np.array([body.position[self._axis_x] for body in bodies
+          ], dtype=float)       
+      54          y = np.array([body.position[self._axis_y] for body in bodies       
+          ], dtype=float)
+      55 -        sizes = np.array([max(6.0, min(24.0, body.radius / 1.0e6)) f       
+         -or body in bodies])                                                      
+      55 +        # Diameter in meters — matches the collision condition exact       
+         +ly.                                                                      
+      56 +        sizes = np.array([2.0 * body.radius for body in bodies], dty     
+         +pe=float)                                                                  
+      57          spots = [                                                          
+      58              {
+      59                  "pos": (x[index], y[index]),
+      60                  "size": sizes[index],
+      61                  "brush": pg.mkBrush(*(body.color or (80, 170, 255)),
+           220),
+      62 +                "pen": pg.mkPen(None),                              
+      63              }
+      64              for index, body in enumerate(bodies)
+      65          ]
+
+● Let me verify the result:         
+                                
+  Read 1 file (ctrl+o to expand)    
+                                                  
+● Fixed. The cause was a units mismatch in ProjectionView:
+                                                                                     
+  Before — the scatter dots used the default pxMode=True, with size clamped to max(6,
+   min(24, radius/1e6)) pixels. So a body whose physical radius was, say, 7×10⁸ m was
+   drawn as a 24-pixel dot regardless of zoom — much smaller in data units than its  
+  real radius. Meanwhile bodies_touch() in collisions.py checks distance ≤ r_left +  
+  r_right in meters, so collisions fired while the visual dots still had a big gap   
+  between them.                                                                      
+                                                                                     
+  After (program/src/gravity_sim/ui/projection_view.py):
+  - ScatterPlotItem(pxMode=False, …) — size now means a diameter in data coordinates
+  (meters).
+  - sizes = 2.0 * body.radius — each spot is drawn at the body's true diameter.
+  - Removed the per-spot pen so the outline doesn't add a fake extra pixel of "size"
+  at the rim.
+
+  Now the dots visually touch exactly when distance == r_left + r_right, matching the
+   collision condition. With setAspectLocked(True, ratio=1) already set, the circles
+  stay round under zoom.
+
+  One thing to be aware of: very small bodies (e.g. radius ≪ 1 px at the current
+  zoom) will now look like single pixels or invisible until you zoom in. That's
+  physically honest, but if you'd prefer a minimum visible size while keeping the
+  visual edge faithful for collisions, the right approach is to render circles in
+  data units and add a separate small pixel-mode marker on top — happy to do that as
+  a follow-up if you want.
+
+✻ Baked for 52s
+___
+___

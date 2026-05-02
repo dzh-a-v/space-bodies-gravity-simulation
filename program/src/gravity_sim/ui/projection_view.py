@@ -33,7 +33,15 @@ class ProjectionView(QWidget):
         self.plot.showGrid(x=True, y=True, alpha=0.25)
         self.plot.setLabel("bottom", plane[0], units="m")
         self.plot.setLabel("left", plane[1], units="m")
-        self.scatter = pg.ScatterPlotItem(size=8, brush=pg.mkBrush(80, 170, 255, 210))
+        # pxMode=False makes `size` a diameter in data units (meters), so a body
+        # is drawn at its true physical radius — matching the collision test
+        # `distance <= r_left + r_right`. With pxMode=True the dots were a fixed
+        # pixel size, so bodies appeared to collide before visually touching.
+        self.scatter = pg.ScatterPlotItem(
+            pxMode=False,
+            pen=pg.mkPen(None),
+            brush=pg.mkBrush(80, 170, 255, 210),
+        )
         self.plot.addItem(self.scatter)
         layout.addWidget(self.plot)
 
@@ -44,12 +52,14 @@ class ProjectionView(QWidget):
 
         x = np.array([body.position[self._axis_x] for body in bodies], dtype=float)
         y = np.array([body.position[self._axis_y] for body in bodies], dtype=float)
-        sizes = np.array([max(6.0, min(24.0, body.radius / 1.0e6)) for body in bodies])
+        # Diameter in meters — matches the collision condition exactly.
+        sizes = np.array([2.0 * body.radius for body in bodies], dtype=float)
         spots = [
             {
                 "pos": (x[index], y[index]),
                 "size": sizes[index],
                 "brush": pg.mkBrush(*(body.color or (80, 170, 255)), 220),
+                "pen": pg.mkPen(None),
             }
             for index, body in enumerate(bodies)
         ]
