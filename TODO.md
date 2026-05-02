@@ -1,6 +1,5 @@
 # fix
 - simulation with collision
-- enable editing objects in the table before running the simulation
 
 # check
 - collision

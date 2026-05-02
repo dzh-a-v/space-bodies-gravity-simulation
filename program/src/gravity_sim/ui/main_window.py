@@ -38,9 +38,19 @@ class MainWindow(QMainWindow):
         presets = list_presets()
         self.controls = ControlsPanel(presets)
         self.table_model = BodyTableModel(self.engine.state.bodies)
+        self.table_model.set_commit_callback(self._commit_table_edit)
+        self.table_model.set_error_callback(
+            lambda message: show_error(self, "Body error", message)
+        )
         self.table = QTableView()
         self.table.setModel(self.table_model)
         self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setEditTriggers(
+            QTableView.DoubleClicked
+            | QTableView.SelectedClicked
+            | QTableView.EditKeyPressed
+            | QTableView.AnyKeyPressed
+        )
 
         self.projections = {
             plane: ProjectionView(plane)
@@ -88,21 +98,39 @@ class MainWindow(QMainWindow):
         self.engine.state.settings.time_scale = time_scale
         self.engine.state.settings.fragment_count = fragment_count
 
+    def _set_table_editable(self, editable: bool) -> None:
+        self.table_model.set_editable(editable)
+        if not editable:
+            # Cancel any in-progress cell editor so a stale value isn't committed.
+            self.table.closePersistentEditor(self.table.currentIndex())
+
     def _start(self) -> None:
         self.running = True
         self.controls.set_running(True)
+        self._set_table_editable(False)
         self.timer.start()
 
     def _pause(self) -> None:
         self.running = False
         self.controls.set_running(False)
         self.timer.stop()
+        self._set_table_editable(True)
 
     def _reset(self) -> None:
         self.running = False
         self.timer.stop()
         self.controls.set_running(False)
+        self._set_table_editable(True)
         self.engine.reset()
+        self._refresh()
+
+    def _commit_table_edit(self, bodies: list) -> None:
+        """Apply an edited body list coming from the table model."""
+        try:
+            self.engine.set_bodies(bodies)
+        except (ValueError, ValidationError) as exc:
+            show_error(self, "Body error", str(exc))
+            return
         self._refresh()
 
     def _tick(self) -> None:
