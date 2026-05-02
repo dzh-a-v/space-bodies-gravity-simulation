@@ -4453,3 +4453,112 @@ ___
   you had before this round.
 ___
 ___
+I want you to create a file with documentation for copilots   
+  such as you. The goal of creating it is to let copilot        
+  quickly understand the project without spending too much      
+  tokens for each file separately - instead, they will read     
+  that instruction and maybe just skim through the files        
+  instead of spending tons of tokens for each file discovery.   
+                                                                
+  Create it and write it the way it can help ai copilots        
+  understand the project, the tests, etc., and save context and 
+   tokens. 
+___
+● Let me first survey the project comprehensively so the doc
+  reflects what's actually there.                               
+                                
+  Searched for 1 pattern, read 19 files, listed 1 directory     
+  (ctrl+o to expand)                                            
+                                                         
+● I have enough to write a high-density orientation document.   
+  Let me check docs/ for any existing docs to avoid clashes:    
+                                                                
+  Listed 1 directory (ctrl+o to expand)                         
+                                                                
+● Now I'll write the doc. The user wants this for AI copilots   
+  specifically, so it should be terse, structured, scannable,   
+  and front-loaded with the things that save the most tokens    
+  (file map, conventions, gotchas). I'll put it at the repo root
+   so it's discoverable, named to signal its purpose.           
+                                                                
+● Write(C:\spbpu\year2\digal\AGENTS.md)                       
+  ⎿  Wrote 211 lines to ..\AGENTS.md                            
+       2 # AI Copilot Orientation                           
+         ptures what would otherwise cost dozens of file      
+         e when this doc points you to a specific questio       
+       4 n that the doc cannot answer.
+       5 ---                                                    
+       7 ## 1. Project at a glance                          
+       9 - **What it is:** Newtonian gravity simulator fo     
+          pyqtgraph 2D projections. SI units throughout.
+      10 - **Spec source of truth:** `docs/tz/tz.tex` (Ru
+         ssian; spec defines valida
+     … +387 lines (ctrl+o to expand)
+
+  Listed 1 directory (ctrl+o to expand)  
+                                                                
+● Created C:\spbpu\year2\digal\AGENTS.md (211 lines, ~14 KB). I
+  named it AGENTS.md because that's a convention several AI
+  tools (including Claude Code, Cursor, etc.) recognise as a    
+  copilot-targeted instructions file — copilots will discover it
+   without needing the user to point them at it. Placed at the  
+  repo root for maximum discoverability.                    
+                                                                
+  What's in it (token-saving structure)
+                                                                
+  Each section is built so a copilot can stop reading early once
+   it has what it needs:                                      
+
+  1. Project at a glance — what it is, the spec source, the
+  AI-only-edits house rule, run/test commands. ~10 file reads'
+  worth of context in one section.
+  2. File map — replaces Glob for the entire repo. One-line
+  summary of every Python file. Tells copilots which files are
+  relevant for which questions.
+  3. Domain model — the Body and SimulationSettings schemas, the
+   validation ranges, the copy() aliasing gotcha. Replaces
+  reading body.py, system_state.py, validation.py, constants.py.
+  4. Engine pipeline — the exact ordering of step(). Lets
+  copilots reason about timing without reading engine.py.
+  5. Built-in presets — what each CSV is for, including the
+  carefully-tuned roche_moon_eccentric.csv orbit parameters that
+   shouldn't be "fixed".
+  6. Physics gotchas — the most token-expensive section if a
+  copilot has to re-discover it: explicit list of things you've
+  already tried and rejected (softening, cooldowns, velocity
+  dispersion). Includes collision branching rules from
+  choose_collision_outcome.
+  7. UI conventions — the editing-while-paused rule, signal/slot
+   layer, refresh path.
+  8. Tests — table of what each test file pins down. A copilot
+  can decide which tests their change might break without
+  opening any test file.
+  9. Common task recipes — pre-routed answers for "add a
+  preset", "change a validation bound", "fragments behave wrong"
+   etc.
+  10. Things to not do — the negative-space rules: rejected
+  approaches, prompts log, no unsolicited edits, no proactive
+  docs.
+  11. When this doc is wrong — quick commands a copilot can run
+  if it suspects drift, plus a "fix the doc when you fix the
+  code" reminder.
+
+  Why this layout
+
+  - Front-loaded: project identity and file map come first so a
+  copilot can answer 80% of "where is X" questions without
+  scrolling.
+  - Negative knowledge is highlighted: §6 and §10 capture
+  decisions that copilots otherwise have to discover by
+  re-trying rejected approaches and getting reverted (which has
+  happened several times in this session).
+  - No prose padding: every section uses tables or terse
+  bullets; concrete numbers (MAX_MASS = 1e26, T = 6h, a =
+  1.677e7) appear inline so copilots don't have to chase them.
+  - Self-correcting: §11 acknowledges the doc can drift and
+  gives a recipe for verifying — and instructs copilots to
+  update the doc alongside code changes.
+
+✻ Sautéed for 3m 2s
+___
+___
