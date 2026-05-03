@@ -6,4 +6,5 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
-settings.local.json
+# settings.local.json
+.claude/
