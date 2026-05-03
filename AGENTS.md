@@ -191,7 +191,8 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 ## 10. Things to *not* do
 
 - **Don't** introduce gravity softening, fragment cooldowns, or fragment velocity dispersion without explicit user approval (all previously tried & reverted).
-- **Don't** edit `tz.tex`, `plan.md`, or `prompts.md` proactively.
+- **Don't** edit `tz.tex`, `plan.md`, `TODO.md` or `prompts.md` proactively.
+- **Don't** do tasks from `TODO.md` (you can ignore it).
 - **Don't** edit code without a user request — `instructions.md` forbids unsolicited refactors.
 - **Don't** add docs files (READMEs etc.) unless explicitly asked.
 - **Don't** add emojis to source/docs unless asked.
