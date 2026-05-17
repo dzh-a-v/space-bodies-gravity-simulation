@@ -106,6 +106,14 @@ def test_packaged_presets_assign_real_body_textures():
     assert by_name["CentralMass"].texture is None
 
 
+def test_moon_presets_assign_real_body_texture():
+    bodies = load_preset("earth_moon.csv")
+    by_name = {body.name: body for body in bodies}
+
+    assert by_name["Moon"].real_body_id == "moon"
+    assert by_name["Moon"].texture == "moon.png"
+
+
 def test_csv_loader_does_not_assign_real_body_identity_to_custom_files(tmp_path):
     path = tmp_path / "scenario.csv"
     path.write_text(

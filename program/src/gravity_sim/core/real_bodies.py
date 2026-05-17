@@ -20,6 +20,7 @@ REAL_BODY_PRESETS: tuple[RealBodyPreset, ...] = (
     RealBodyPreset("mercury", "Mercury", 3.3011e23, 2.4397e6, "mercury.png"),
     RealBodyPreset("venus", "Venus", 4.8675e24, 6.0518e6, "venus.png"),
     RealBodyPreset("earth", "Earth", 5.97237e24, 6.371e6, "earth.png"),
+    RealBodyPreset("moon", "Moon", 7.342e22, 1.737e6, "moon.png"),
     RealBodyPreset("mars", "Mars", 6.4171e23, 3.3895e6, "mars.png"),
 )
 

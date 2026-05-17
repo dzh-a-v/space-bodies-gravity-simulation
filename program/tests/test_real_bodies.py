@@ -8,6 +8,7 @@ def test_real_body_presets_are_rocky_bodies_with_reserved_textures():
         "Mercury",
         "Venus",
         "Earth",
+        "Moon",
         "Mars",
     ]
 
@@ -19,5 +20,6 @@ def test_real_body_presets_are_rocky_bodies_with_reserved_textures():
 
 def test_real_body_lookup_returns_matching_preset():
     assert real_body_preset_for("earth").name == "Earth"
+    assert real_body_preset_for("moon").name == "Moon"
     assert real_body_preset_for(None) is None
     assert real_body_preset_for("custom") is None
