@@ -23,6 +23,11 @@ COLLISION_SPREAD_SPEED_FRACTION = 0.25
 COLLISION_SPREAD_RANDOM_FACTOR_MIN = 0.5
 COLLISION_SPREAD_RANDOM_FACTOR_MAX = 2.5
 COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
+FRAGMENT_TARGET_VOLUME_FRACTION = 0.1
+FRAGMENT_SURFACE_GAP_FRACTION = 0.02
+FRAGMENT_PLACEMENT_RESTARTS = 16
+FRAGMENT_PLACEMENT_ATTEMPTS_PER_FRAGMENT = 160
+FRAGMENT_RADIUS_SEARCH_STEPS = 8
 
 
 def can_fragment(body: Body) -> bool:
@@ -33,6 +38,125 @@ def max_fragments_for_mass(body: Body) -> int:
     """Return how many valid fragments this body can produce by mass."""
 
     return int(body.mass // MIN_MASS)
+
+
+def _random_offset_in_ball(radius: float, rng: random.Random) -> Vector3:
+    if radius <= 0.0:
+        return vector3()
+
+    z = rng.uniform(-1.0, 1.0)
+    theta = rng.uniform(0.0, 2.0 * pi)
+    xy_radius = sqrt(max(0.0, 1.0 - z * z))
+    direction = vector3([xy_radius * cos(theta), xy_radius * sin(theta), z])
+    radial = rng.random() ** (1.0 / 3.0)
+    return direction * radius * radial
+
+
+def _squared_distance(left: Vector3, right: Vector3) -> float:
+    dx = float(left[0] - right[0])
+    dy = float(left[1] - right[1])
+    dz = float(left[2] - right[2])
+    return dx * dx + dy * dy + dz * dz
+
+
+def _squared_norm(vector: Vector3) -> float:
+    x = float(vector[0])
+    y = float(vector[1])
+    z = float(vector[2])
+    return x * x + y * y + z * z
+
+
+def _try_fragment_layout(
+    parent_radius: float,
+    count: int,
+    fragment_radius: float,
+    rng: random.Random,
+    restart_limit: int = FRAGMENT_PLACEMENT_RESTARTS,
+) -> list[Vector3] | None:
+    available_radius = parent_radius - fragment_radius
+    if available_radius < 0.0:
+        return None
+
+    min_distance = 2.0 * fragment_radius * (1.0 + FRAGMENT_SURFACE_GAP_FRACTION)
+    if count > 1 and min_distance >= 2.0 * available_radius:
+        return None
+
+    min_distance_squared = min_distance * min_distance
+
+    for _restart in range(restart_limit):
+        offsets: list[Vector3] = []
+        for _fragment_index in range(count):
+            best_candidate: Vector3 | None = None
+            best_score = -1.0
+            for _attempt in range(FRAGMENT_PLACEMENT_ATTEMPTS_PER_FRAGMENT):
+                candidate = _random_offset_in_ball(available_radius, rng)
+                score = (
+                    _squared_norm(candidate)
+                    if not offsets
+                    else min(_squared_distance(candidate, existing) for existing in offsets)
+                )
+                if score > best_score:
+                    best_candidate = candidate
+                    best_score = score
+
+            if best_candidate is None or (
+                offsets and best_score <= min_distance_squared
+            ):
+                break
+
+            offsets.append(best_candidate)
+
+        if len(offsets) == count:
+            return offsets
+
+    return None
+
+
+def _find_fragment_layout(
+    parent_radius: float,
+    count: int,
+    target_radius: float,
+    rng: random.Random,
+) -> tuple[float, list[Vector3]] | None:
+    upper_radius = min(parent_radius, max(target_radius, MIN_RADIUS))
+    if count > 1:
+        pair_limit = parent_radius / (2.0 + FRAGMENT_SURFACE_GAP_FRACTION)
+        upper_radius = min(upper_radius, pair_limit * (1.0 - 1e-12))
+    if upper_radius < MIN_RADIUS:
+        return None
+
+    target_layout = _try_fragment_layout(parent_radius, count, upper_radius, rng)
+    if target_layout is not None:
+        return upper_radius, target_layout
+
+    best_layout = _try_fragment_layout(parent_radius, count, MIN_RADIUS, rng)
+    if best_layout is None:
+        return None
+
+    best_radius = float(MIN_RADIUS)
+    low = float(MIN_RADIUS)
+    high = float(upper_radius)
+    if high <= low:
+        return best_radius, best_layout
+
+    for _step in range(FRAGMENT_RADIUS_SEARCH_STEPS):
+        candidate_radius = (low + high) / 2.0
+        candidate_layout = _try_fragment_layout(
+            parent_radius,
+            count,
+            candidate_radius,
+            rng,
+            restart_limit=8,
+        )
+        if candidate_layout is None:
+            high = candidate_radius
+            continue
+
+        best_radius = candidate_radius
+        best_layout = candidate_layout
+        low = candidate_radius
+
+    return best_radius, best_layout
 
 
 def unique_name(preferred: str, used_names: set[str]) -> str:
@@ -76,70 +200,20 @@ def create_fragments(
     rng = rng or random.Random()
     fragment_mass = parent.mass / actual_count
 
-    # Place fragment centres on a 3D Fibonacci ball-lattice. Each centre's
-    # direction comes from a Fibonacci sphere (uniform on S²) and its radial
-    # distance from origin grows as ((i+0.5)/N)^(1/3), which fills a ball
-    # uniformly by volume. The lattice itself is unit-scaled here; we scale
-    # to the parent's radius below.
-    offsets: list = []
-    for index in range(actual_count):
-        if actual_count == 1:
-            offsets.append(vector3([0.0, 0.0, 0.0]))
-            continue
-        z = rng.uniform(-1.0, 1.0)
-        theta = rng.uniform(0.0, 2.0 * pi)
-        xy_radius = sqrt(max(0.0, 1.0 - z * z))
-        direction = vector3([xy_radius * cos(theta), xy_radius * sin(theta), z])
-        radial = rng.random() ** (1.0 / 3.0)
-        offsets.append(direction * radial)
-
-    # The cloud sits inside the parent's original radius — fragments occupy
-    # the same region the parent did, with gaps. We scale the unit lattice so
-    # that the outermost centre lies inside the parent (with a small inset so
-    # fragments don't immediately leak past the parent boundary).
-    OUTER_INSET = 0.95  # outermost centre at 0.95 · R_parent from the centre
-    max_unit_radius = max(
-        float(((off) ** 2).sum() ** 0.5) for off in offsets
-    ) if actual_count > 1 else 1.0
-    cloud_scale = (parent.radius * OUTER_INSET) / max_unit_radius if max_unit_radius > 0 else 0.0
-
-    # Find the closest pair of scaled centres so we can choose a fragment
-    # radius small enough to leave a comfortable surface gap between every
-    # pair. Mass per fragment is fixed (= parent.mass / N); we drop strict
-    # volume conservation and let fragments be denser than the parent so they
-    # are spatially well-separated and don't immediately re-merge after spawn.
-    min_centre_distance = float("inf")
-    for i in range(actual_count):
-        for j in range(i + 1, actual_count):
-            distance_ij = float(
-                (((offsets[i] - offsets[j]) * cloud_scale) ** 2).sum() ** 0.5
-            )
-            if distance_ij < min_centre_distance:
-                min_centre_distance = distance_ij
-
-    # Fragment radius rule: each fragment occupies at most a quarter of the
-    # gap to its nearest neighbour, i.e. centres are 4·r_frag apart, which
-    # leaves a surface gap of 2·r_frag (a full fragment diameter of empty
-    # space) between the closest pair. This is well clear of the collision
-    # resolver's `distance ≤ r_a + r_b` test, so fragments do not merge on
-    # the next few simulation steps.
-    if actual_count <= 1 or min_centre_distance == float("inf"):
-        # Single fragment: keep the volume-preserving radius (purely cosmetic).
-        fragment_radius = parent.radius
-    else:
-        fragment_radius = min_centre_distance / 4.0
-
-    # Never shrink below MIN_RADIUS (validation lower bound). If the parent
-    # is so small that this clamp would create overlapping fragments, we
-    # accept the overlap rather than violate the validator — this only
-    # happens for parents near MIN_RADIUS, which can barely fragment anyway.
-    fragment_radius = max(fragment_radius, MIN_RADIUS)
+    # Search for the largest non-touching fragment spheres that fit inside the parent.
+    target_radius = parent.radius * (FRAGMENT_TARGET_VOLUME_FRACTION / actual_count) ** (
+        1.0 / 3.0
+    )
+    layout = _find_fragment_layout(parent.radius, actual_count, target_radius, rng)
+    if layout is None:
+        return []
+    fragment_radius, offsets = layout
 
     fragments: list[Body] = []
     fragment_origin = parent.fragment_origin or parent.name
     fragment_texture = None if is_reserved_real_body_texture(parent.texture) else parent.texture
     for index in range(actual_count):
-        offset = offsets[index] * cloud_scale
+        offset = offsets[index]
         name = unique_name(f"{parent.name}_fragment_{index + 1}", used_names)
         fragments.append(
             Body(
