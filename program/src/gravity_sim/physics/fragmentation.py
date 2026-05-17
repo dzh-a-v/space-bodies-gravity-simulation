@@ -131,6 +131,7 @@ def create_fragments(
                 is_fragment=True,
                 fragment_origin=fragment_origin,
                 color=parent.color,
+                texture=parent.texture,
             )
         )
 
@@ -211,4 +212,5 @@ def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) ->
         is_fragment=left.is_fragment or right.is_fragment,
         fragment_origin=fragment_origin,
         color=WHITE,
+        texture=left.texture if left.mass >= right.mass else right.texture,
     )

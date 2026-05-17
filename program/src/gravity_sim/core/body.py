@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from math import pi
 
 from .colors import Color
+from .textures import Texture
 from .vector import Vector3, vector3
 
 
@@ -20,6 +21,7 @@ class Body:
     is_fragment: bool = False
     fragment_origin: str | None = None
     color: Color | None = None
+    texture: Texture | None = None
     roche_exposure_seconds: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -49,5 +51,6 @@ class Body:
             is_fragment=self.is_fragment,
             fragment_origin=self.fragment_origin,
             color=self.color,
+            texture=self.texture,
             roche_exposure_seconds=dict(self.roche_exposure_seconds),
         )

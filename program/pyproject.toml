@@ -26,7 +26,7 @@ gravity-sim = "gravity_sim.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-gravity_sim = ["resources/presets/*.csv"]
+gravity_sim = ["resources/presets/*.csv", "resources/textures/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
