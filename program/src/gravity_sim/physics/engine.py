@@ -45,6 +45,7 @@ class SimulationEngine:
 
     def step(self, dt: float | None = None) -> SystemState:
         validate_fragment_count(self.state.settings.fragment_count)
+        self._sync_solver_settings()
         dt = self.state.settings.effective_step() if dt is None else dt
         if dt <= 0:
             return self.state
@@ -62,9 +63,16 @@ class SimulationEngine:
         return self.state
 
     def recompute_accelerations(self) -> None:
+        self._sync_solver_settings()
         accelerations = self.solver.compute_accelerations(self.state.bodies)
         for body, acceleration in zip(self.state.bodies, accelerations, strict=True):
             body.acceleration = acceleration
+
+    def _sync_solver_settings(self) -> None:
+        if hasattr(self.solver, "artificial_coefficients_enabled"):
+            self.solver.artificial_coefficients_enabled = (
+                self.state.settings.artificial_coefficients_enabled
+            )
 
     def _assign_initial_colors(self) -> None:
         for body, color in zip(self.state.bodies, initial_palette(len(self.state.bodies)), strict=True):

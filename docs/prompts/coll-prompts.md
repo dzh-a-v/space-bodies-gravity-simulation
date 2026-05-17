@@ -108,6 +108,32 @@ The existing table error callback is already wired to `QMessageBox.critical(...)
 Verification: `pytest` passed, `59 passed in 63.90s`.
 ___
 ___
+- add a button which enables / disables our coefficients for artificial changes of the bodies characteristics such as impulses upon collision etc.
+  I think it can be done just by changing the coefficients if the user turns that parameter on/off, like it just won't affect anything this way
+___
+Implemented the toggle.
+
+What changed:
+- Added `artificial_coefficients_enabled` to `SimulationSettings`.
+- Added a new UI button: `Artificial coefficients: On/Off`.
+- When disabled:
+  - collision fragment attraction impulses are skipped;
+  - collision spread impulses are skipped;
+  - Roche fragment attraction impulses are skipped;
+  - same-origin fragment gravity scaling becomes neutral (`1.0` instead of reduced).
+- The toggle is preserved across state copies/resets.
+
+Key files:
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:51>)
+- [main_window.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/main_window.py:120>)
+- [system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/system_state.py:17>)
+- [collisions.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/collisions.py:107>)
+- [roche.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/roche.py:84>)
+- [gravity.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/gravity.py:24>)
+
+Verification: `pytest` passed, `63 passed in 0.47s`.
+___
+___
 
 
 

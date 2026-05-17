@@ -14,6 +14,7 @@ class SimulationSettings:
     time_scale: float = 1.0
     fragment_count: int = 8
     max_objects: int = FRAGMENT_OBJECT_LIMIT
+    artificial_coefficients_enabled: bool = True
 
     def effective_step(self) -> float:
         return self.time_step * self.time_scale
@@ -34,6 +35,9 @@ class SystemState:
                 time_scale=self.settings.time_scale,
                 fragment_count=self.settings.fragment_count,
                 max_objects=self.settings.max_objects,
+                artificial_coefficients_enabled=(
+                    self.settings.artificial_coefficients_enabled
+                ),
             ),
         )
 

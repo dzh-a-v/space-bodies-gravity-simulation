@@ -1,6 +1,8 @@
 import random
 from math import isclose
 
+import numpy as np
+
 from gravity_sim.core.body import Body
 from gravity_sim.core.system_state import SimulationSettings
 from gravity_sim.core.vector import distance, norm
@@ -116,6 +118,24 @@ def test_fragments_get_distance_weighted_extra_attraction():
         rel_tol=1e-12,
     )
     assert farthest_fragment.velocity[0] - small.velocity[0] == 0.0
+
+
+def test_collision_fragments_keep_parent_velocity_when_artificial_coefficients_are_off():
+    large = Body("Large", 1e17, 1e4, [0, 0, 0], [1e5, 0, 0])
+    small = Body("Small", 2e16, 1e4, [2e4, 0, 0], [-1e5, 0, 0])
+    settings = SimulationSettings(
+        fragment_count=8,
+        artificial_coefficients_enabled=False,
+    )
+
+    result = resolve_collisions([large, small], settings, random.Random(0))
+
+    small_fragments = [body for body in result if body.name.startswith("Small_fragment")]
+    large_fragments = [body for body in result if body.name.startswith("Large_fragment")]
+    assert small_fragments
+    assert large_fragments
+    assert all(np.allclose(fragment.velocity, small.velocity) for fragment in small_fragments)
+    assert all(np.allclose(fragment.velocity, large.velocity) for fragment in large_fragments)
 
 
 def test_collision_spread_impulse_leaves_axis_fragment_unchanged():

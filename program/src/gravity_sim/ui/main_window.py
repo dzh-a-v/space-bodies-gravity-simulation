@@ -93,6 +93,9 @@ class MainWindow(QMainWindow):
             lambda message: show_error(self, "Settings error", message)
         )
         self.controls.texture_rotation_toggled.connect(self._set_texture_rotation_enabled)
+        self.controls.artificial_coefficients_toggled.connect(
+            self._set_artificial_coefficients_enabled
+        )
 
         if presets:
             self._load_preset(presets[0])
@@ -112,6 +115,11 @@ class MainWindow(QMainWindow):
 
     def _set_texture_rotation_enabled(self, enabled: bool) -> None:
         self.texture_rotation_enabled = enabled
+        self._refresh()
+
+    def _set_artificial_coefficients_enabled(self, enabled: bool) -> None:
+        self.engine.state.settings.artificial_coefficients_enabled = enabled
+        self.engine.recompute_accelerations()
         self._refresh()
 
     def _set_table_editable(self, editable: bool) -> None:
