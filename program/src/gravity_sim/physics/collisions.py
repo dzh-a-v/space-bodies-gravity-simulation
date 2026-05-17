@@ -11,7 +11,7 @@ from gravity_sim.core.constants import GRAVITATIONAL_CONSTANT
 from gravity_sim.core.system_state import SimulationSettings
 from gravity_sim.core.vector import distance, norm
 
-from .fragmentation import create_fragments, merge_bodies
+from .fragmentation import apply_attractor_impulse, create_fragments, merge_bodies
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,12 +91,14 @@ def resolve_collisions(
             for parent in (left, right):
                 if available_slots <= 0:
                     break
+                attractor = right if parent is left else left
                 fragments = create_fragments(
                     parent,
                     settings.fragment_count,
                     used_names,
                     available_slots=available_slots,
                 )
+                apply_attractor_impulse(parent, attractor, fragments)
                 produced.extend(fragments)
                 available_slots -= len(fragments)
 

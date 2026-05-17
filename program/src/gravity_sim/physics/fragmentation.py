@@ -8,10 +8,13 @@ from gravity_sim.core.body import Body
 from gravity_sim.core.colors import WHITE
 from gravity_sim.core.constants import MIN_FRAGMENTABLE_MASS, MIN_FRAGMENTS, MIN_RADIUS
 from gravity_sim.core.validation import validate_fragment_count
-from gravity_sim.core.vector import vector3
+from gravity_sim.core.vector import norm, vector3
 
 # Golden-angle increment for the Fibonacci sphere/ball lattice.
 _GOLDEN_ANGLE = pi * (3.0 - sqrt(5.0))
+
+ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
+ATTRACTOR_IMPULSE_SECONDS = 1.0
 
 
 def can_fragment(body: Body) -> bool:
@@ -130,6 +133,44 @@ def create_fragments(
         )
 
     return fragments
+
+
+def apply_attractor_impulse(
+    parent: Body,
+    attractor: Body,
+    fragments: list[Body],
+) -> None:
+    """Kick fragments that spawned on the attractor-facing side."""
+
+    if attractor.mass < parent.mass:
+        return
+
+    parent_to_attractor = attractor.position - parent.position
+    parent_attractor_distance = norm(parent_to_attractor)
+    if parent_attractor_distance == 0.0:
+        return
+    attractor_direction = parent_to_attractor / parent_attractor_distance
+
+    relative_speed = norm(parent.velocity - attractor.velocity)
+    impulse_speed = relative_speed * ATTRACTOR_IMPULSE_SPEED_FRACTION
+    if impulse_speed <= 0.0:
+        return
+
+    for fragment in fragments:
+        parent_to_fragment = fragment.position - parent.position
+        side_projection = float((parent_to_fragment * attractor_direction).sum())
+        if side_projection <= 0.0:
+            continue
+
+        fragment_to_attractor = attractor.position - fragment.position
+        fragment_attractor_distance = norm(fragment_to_attractor)
+        if fragment_attractor_distance == 0.0:
+            continue
+
+        direction = fragment_to_attractor / fragment_attractor_distance
+        impulse = direction * impulse_speed
+        fragment.velocity = fragment.velocity + impulse
+        fragment.acceleration = fragment.acceleration + impulse / ATTRACTOR_IMPULSE_SECONDS
 
 
 def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) -> Body:

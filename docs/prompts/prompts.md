@@ -4562,3 +4562,127 @@ ___
 ✻ Sautéed for 3m 2s
 ___
 ___
+нужно реализовать это
+- after fragmentation, the fragments from the large object's side must be more attracted to it (it can be achieved by adding some acceleration towards that direction)
+___
+Реализовал поведение в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:40): после collision-fragmentation фрагменты на стороне более массивного объекта получают дополнительное ускорение к нему. Чтобы эффект не пропадал после `recompute_accelerations()`, я также применяю маленький velocity impulse из этого ускорения.
+
+Добавил регрессионный тест в [test_collisions.py](c:/spbpu/year2/digal/program/tests/test_collisions.py:42): проверяет, что фрагменты малой частицы на стороне большого тела получают ускорение и скорость в его сторону, а дальняя сторона остается без такого boost.
+
+Проверка: `python -m pytest -q` прошел, `25 passed`.
+___
+___
+укажи конкретное место в программе, где настраивается сила этого импульса в сторону большого объекта и колчиество осколков, которые к ней летят
+___
+Сила импульса настраивается в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:18):
+
+```python
+_LARGE_SIDE_ATTRACTION_MULTIPLIER = 8.0
+_LARGE_SIDE_ATTRACTION_IMPULSE_SECONDS = 1.0
+```
+
+Фактический импульс считается в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:68): ускорение к большому телу умножается на `_LARGE_SIDE_ATTRACTION_MULTIPLIER`, а затем добавляется к скорости как `attraction * _LARGE_SIDE_ATTRACTION_IMPULSE_SECONDS`.
+
+Количество осколков, которые летят к большому объекту, напрямую отдельной константой сейчас не задано. Оно определяется геометрически в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:57): boost получают только те фрагменты, для которых скалярное произведение с направлением на большой объект больше нуля, то есть примерно половина облака осколков со стороны большого тела.
+
+Общее количество осколков задается в UI полем `Fragments`; в коде это [controls_panel.py](c:/spbpu/year2/digal/program/src/gravity_sim/ui/controls_panel.py:51) и используется при столкновении как `settings.fragment_count` в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:143).
+___
+___
+мне кажется, то, какие осколки должны притягиваться к большому объекту, считается неправильно, потому что изменение этих коэффициентов практически никак не отражается на поведении осколков
+___
+Ты был прав: старый коэффициент почти не влиял, потому что импульс считался как `G*M/r^2 * 1 сек`, и на реальном столкновении получалось меньше `1 м/с` при скоростях порядка `100000 м/с`.
+
+Я поправил это в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:18):
+
+```python
+_LARGE_SIDE_ATTRACTION_FRAGMENT_FRACTION = 0.5
+_LARGE_SIDE_ATTRACTION_SPEED_FRACTION = 0.15
+_LARGE_SIDE_ATTRACTION_IMPULSE_SECONDS = 1.0
+```
+
+Теперь:
+
+`_LARGE_SIDE_ATTRACTION_FRAGMENT_FRACTION` задает долю осколков, которые полетят к большому объекту. Например, `0.5` при `8` осколках даст `ceil(8 * 0.5) = 4` осколка.
+
+`_LARGE_SIDE_ATTRACTION_SPEED_FRACTION` задает силу импульса как долю относительной скорости столкновения. Например, при скорости сближения `200000 м/с` и `0.15` осколки получают примерно `30000 м/с` в сторону большого тела.
+
+Выбор осколков теперь считается в [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:61): осколки сортируются по тому, насколько они находятся на стороне большого объекта, и boost получает ближайшая к нему доля.
+
+Проверка: `python -m pytest -q` прошел, `25 passed`.
+___
+___
+снова не работает. когда я меняю коэффициент скорости, изменений неь. мне кажется, программа не может корректно распознать частицы, которые надо запустить в сторону большего объекта. 
+
+сделай для начала эту выборку рандомной, пусть 70% случайно выбранных осколков получают этот импульс
+___
+Сделал выборку случайной: теперь `70%` осколков меньшего тела получают импульс в сторону большего объекта.
+
+Настройки здесь: [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:16)
+
+```python
+_LARGE_SIDE_ATTRACTION_FRAGMENT_FRACTION = 0.7
+_LARGE_SIDE_ATTRACTION_SPEED_FRACTION = 0.5
+_LARGE_SIDE_ATTRACTION_IMPULSE_SECONDS = 1.0
+```
+
+Сам выбор теперь здесь: [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:62)
+
+```python
+for fragment in rng.sample(fragments, boosted_count):
+```
+
+Важно: boost применяется только если второй объект строго больше по массе: [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:47). Для 8 осколков сейчас выбирается `ceil(8 * 0.7) = 6` случайных осколков.
+
+Добавил тест на это поведение в [test_collisions.py](c:/spbpu/year2/digal/program/tests/test_collisions.py:40). Проверка прошла: `25 passed`.
+
+Вижу, что [prompts.md](c:/spbpu/year2/digal/docs/prompts/prompts.md) уже изменен в рабочем дереве, я его не трогал.
+___
+___
+пока что они абсолютно не меняют свою траекторию. это не работает. они должны получать импульс в сторону большого объекта. проверь, получают ли они этот импульс после раскола и нет ли других условий, которые препятствуют этому импульс
+___
+Проверил: импульс раньше действительно мог “не работать” в двух случаях.
+
+Главная проблема: Roche-раскол вообще не получал этот импульс. Он создавал осколки напрямую в `roche.py`, мимо логики из `collisions.py`. Я перенес импульс в общий helper [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:140) и теперь он вызывается и при collision, и при Roche.
+
+Настройки теперь здесь: [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:17)
+
+```python
+ATTRACTOR_IMPULSE_FRAGMENT_FRACTION = 0.7
+ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
+ATTRACTOR_IMPULSE_SECONDS = 1.0
+```
+
+Еще один блокер: раньше равные массы полностью отключали импульс. Теперь равные массы разрешены, поэтому `simple_collision.csv` тоже показывает эффект. Диагностика после полного шага `simple_collision`: часть `Alpha` ускоряется с `250` до примерно `380-481 м/с`, часть `Beta` с `-250` до примерно `-412..-488 м/с`.
+
+Для Roche тоже проверил: 6 из 8 фрагментов получают `vx = -500 м/с` в сторону primary при скорости спутника `1000 м/с`.
+
+Проверка: `python -m pytest -q` прошел, `26 passed`. `docs/prompts/prompts.md` остается измененным в рабочем дереве, я его не трогал.
+___
+___
+уже лучше, теперь реализуй логику, по которой к большому объекту получали импульс именно те осколки, которые находятся с его стороны
+___
+Реализовал геометрическую выборку: теперь импульс получают только осколки, которые находятся со стороны большого/притягивающего объекта.
+
+Основная логика здесь: [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:138). Критерий:
+
+```python
+side_projection = float((parent_to_fragment * attractor_direction).sum())
+if side_projection <= 0.0:
+    continue
+```
+
+То есть если проекция смещения осколка от центра родителя направлена к большому объекту, осколок получает импульс. Случайная выборка полностью убрана.
+
+Импульс теперь применяется и при столкновениях: [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:101), и при Roche-разрушении: [roche.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/roche.py:71).
+
+Сила импульса всё еще настраивается здесь: [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:16)
+
+```python
+ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
+```
+
+Проверка прошла: `python -m pytest -q` → `26 passed`. `docs/prompts/prompts.md` остается измененным в рабочем дереве, я его не трогал.
+___
+___
+измени логику так: импульс получает каждый из осколков, но чем ближе осколок к телу, тем больший импульс он получает (условно: самый ближний к большему телу осколок получает 100% импульс, самый дальний 0%)
+___

@@ -7,7 +7,7 @@ from gravity_sim.core.constants import MIN_ROCHE_FRAGMENTS, ROCHE_REQUIRED_SECON
 from gravity_sim.core.system_state import SimulationSettings
 from gravity_sim.core.vector import distance
 
-from .fragmentation import can_fragment, create_fragments
+from .fragmentation import apply_attractor_impulse, can_fragment, create_fragments
 
 
 def roche_limit(primary: Body, satellite: Body) -> float:
@@ -31,6 +31,7 @@ def apply_roche_limit(
 
         active_primaries: set[str] = set()
         should_fragment = False
+        fragmenting_primary: Body | None = None
 
         for primary_index, primary in enumerate(bodies):
             if primary_index == satellite_index or primary.mass <= satellite.mass:
@@ -43,6 +44,7 @@ def apply_roche_limit(
                 )
                 if satellite.roche_exposure_seconds[primary.name] >= ROCHE_REQUIRED_SECONDS:
                     should_fragment = True
+                    fragmenting_primary = primary
                     break
 
         for primary_name in list(satellite.roche_exposure_seconds):
@@ -58,15 +60,16 @@ def apply_roche_limit(
         used_names = {body.name for index, body in enumerate(bodies) if index not in consumed}
         used_names.update(body.name for body in additions)
         fragment_count = max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
-        additions.extend(
-            create_fragments(
-                satellite,
-                fragment_count,
-                used_names,
-                available_slots=available_slots,
-                minimum=MIN_ROCHE_FRAGMENTS,
-            )
+        fragments = create_fragments(
+            satellite,
+            fragment_count,
+            used_names,
+            available_slots=available_slots,
+            minimum=MIN_ROCHE_FRAGMENTS,
         )
+        if fragmenting_primary is not None:
+            apply_attractor_impulse(satellite, fragmenting_primary, fragments)
+        additions.extend(fragments)
 
     output = [body for index, body in enumerate(bodies) if index not in consumed]
     output.extend(additions)
