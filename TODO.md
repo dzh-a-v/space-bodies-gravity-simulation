@@ -11,7 +11,6 @@
 
 # notes
 - Now when the Moon and the Earth are static and the step of the simulation is 1 second, they unite upon collision.
-- !!!!! In collision simulation, the objects break into fragments and those fragments perfectly go to each other instead of flying to different sides.
 
 # results
 ## good simulations
