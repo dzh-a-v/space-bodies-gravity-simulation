@@ -13,6 +13,13 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from gravity_sim.core.body import Body
 
 TEXTURE_PACKAGE = "gravity_sim.resources.textures"
+TEXTURE_ROTATION_PERIOD_SECONDS = 86_400.0
+
+
+def texture_rotation_degrees(time_seconds: float, enabled: bool) -> float:
+    if not enabled:
+        return 0.0
+    return (time_seconds % TEXTURE_ROTATION_PERIOD_SECONDS) / TEXTURE_ROTATION_PERIOD_SECONDS * 360.0
 
 
 class BodyTextureItem(pg.GraphicsObject):
@@ -22,7 +29,13 @@ class BodyTextureItem(pg.GraphicsObject):
         self._bounds = QRectF()
         self._pixmaps: dict[str, QPixmap] = {}
 
-    def set_bodies(self, bodies: list[Body], axis_x: int, axis_y: int) -> None:
+    def set_bodies(
+        self,
+        bodies: list[Body],
+        axis_x: int,
+        axis_y: int,
+        rotation_degrees: float,
+    ) -> None:
         self.prepareGeometryChange()
         self._spots = [
             {
@@ -30,6 +43,7 @@ class BodyTextureItem(pg.GraphicsObject):
                 "y": float(body.position[axis_y]),
                 "radius": float(body.radius),
                 "texture": body.texture,
+                "rotation_degrees": rotation_degrees,
                 "color": body.color or (80, 170, 255),
             }
             for body in bodies
@@ -58,6 +72,9 @@ class BodyTextureItem(pg.GraphicsObject):
                 clip_path.addEllipse(target)
                 painter.save()
                 painter.setClipPath(clip_path)
+                painter.translate(target.center())
+                painter.rotate(spot["rotation_degrees"])
+                painter.translate(-target.center())
                 painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
                 painter.restore()
                 continue
@@ -113,5 +130,5 @@ class ProjectionView(QWidget):
         self.plot.addItem(self.body_item)
         layout.addWidget(self.plot)
 
-    def set_bodies(self, bodies: list[Body]) -> None:
-        self.body_item.set_bodies(bodies, self._axis_x, self._axis_y)
+    def set_bodies(self, bodies: list[Body], rotation_degrees: float = 0.0) -> None:
+        self.body_item.set_bodies(bodies, self._axis_x, self._axis_y, rotation_degrees)
