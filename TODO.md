@@ -1,5 +1,5 @@
 # fix
-- forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius.
+- forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius. If user enters invalid numbers, a window must pop and inform him about that.
   where to find:
   - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
   - program/src/gravity_sim/ui/body_table_model.py    _apply_edit(...) writes body.position, body.velocity, body.acceleration directly
@@ -21,7 +21,7 @@
 - add a button which enables / disables our coefficients for artificial changes of the bodies characteristics such as impulses upon collision etc.
   I think it can be done just by changing the coefficients if the user turns that parameter on/off, like it just won't affect anything this way
 
-- when body destructs, its fragments are too small in radius
+- when body destructs, its fragments are too small in radius. they must be larger and also their radius must depend on their count and the radius of parent object.
 
 # check
 
