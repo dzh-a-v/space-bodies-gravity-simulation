@@ -22,11 +22,11 @@ COLLISION_SPREAD_SPEED_FRACTION = 0.25
 COLLISION_SPREAD_RANDOM_FACTOR_MIN = 0.5
 COLLISION_SPREAD_RANDOM_FACTOR_MAX = 2.5
 COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
-FRAGMENT_TARGET_VOLUME_FRACTION = 0.8
+FRAGMENT_TARGET_VOLUME_FRACTION = 0.1
 FRAGMENT_SURFACE_GAP_FRACTION = 0.02
-FRAGMENT_PLACEMENT_RESTARTS = 64
-FRAGMENT_PLACEMENT_ATTEMPTS_PER_FRAGMENT = 500
-FRAGMENT_RADIUS_SEARCH_STEPS = 10
+FRAGMENT_PLACEMENT_RESTARTS = 16
+FRAGMENT_PLACEMENT_ATTEMPTS_PER_FRAGMENT = 160
+FRAGMENT_RADIUS_SEARCH_STEPS = 8
 
 
 def can_fragment(body: Body) -> bool:
@@ -121,6 +121,12 @@ def _find_fragment_layout(
     if count > 1:
         pair_limit = parent_radius / (2.0 + FRAGMENT_SURFACE_GAP_FRACTION)
         upper_radius = min(upper_radius, pair_limit * (1.0 - 1e-12))
+    if upper_radius < MIN_RADIUS:
+        return None
+
+    target_layout = _try_fragment_layout(parent_radius, count, upper_radius, rng)
+    if target_layout is not None:
+        return upper_radius, target_layout
 
     best_layout = _try_fragment_layout(parent_radius, count, MIN_RADIUS, rng)
     if best_layout is None:

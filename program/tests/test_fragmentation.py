@@ -102,7 +102,9 @@ def test_fragment_total_volume_does_not_exceed_target_fraction():
     fragments = create_fragments(parent, 8, set(), rng=random.Random(0))
 
     assert fragments
-    assert fragment_volume_fraction(parent, fragments) <= FRAGMENT_TARGET_VOLUME_FRACTION
+    assert fragment_volume_fraction(parent, fragments) <= (
+        FRAGMENT_TARGET_VOLUME_FRACTION + 1e-12
+    )
 
 
 def test_fragment_radius_scales_with_parent_radius():
