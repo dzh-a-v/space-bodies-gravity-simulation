@@ -8,8 +8,8 @@ from gravity_sim.physics.roche import apply_roche_limit, roche_limit
 
 
 def test_roche_exposure_accumulates_and_fragments_after_24_hours():
-    primary = Body("Primary", 1e20, 1e6, [0, 0, 0], [0, 0, 0])
-    satellite = Body("Satellite", 2e15, 1e4, [1e6, 0, 0], [0, 0, 0])
+    primary = Body("Primary", 1e21, 1e6, [0, 0, 0], [0, 0, 0])
+    satellite = Body("Satellite", 4e15, 1e4, [1e6, 0, 0], [0, 0, 0])
     assert 1e6 <= roche_limit(primary, satellite)
 
     bodies = apply_roche_limit(
@@ -45,7 +45,7 @@ def test_roche_exposure_resets_outside_limit():
 
 def test_roche_fragmentation_applies_distance_weighted_primary_impulse():
     primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
-    satellite = Body("Satellite", 2e15, 1e4, [2e6, 0, 0], [0, 1000, 0])
+    satellite = Body("Satellite", 8e15, 1e4, [2e6, 0, 0], [0, 1000, 0])
     assert 2e6 <= roche_limit(primary, satellite)
 
     bodies = apply_roche_limit(
@@ -85,3 +85,36 @@ def test_roche_fragmentation_applies_distance_weighted_primary_impulse():
         rel_tol=1e-12,
     )
     assert norm(farthest_fragment.velocity - satellite.velocity) == 0.0
+
+
+def test_roche_keeps_body_when_minimum_valid_fragment_mass_is_impossible():
+    primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
+    satellite = Body("Satellite", 1.5e15, 1e4, [2e6, 0, 0], [0, 0, 0])
+    assert 2e6 <= roche_limit(primary, satellite)
+
+    bodies = apply_roche_limit(
+        [primary, satellite],
+        SimulationSettings(fragment_count=4),
+        ROCHE_REQUIRED_SECONDS,
+    )
+
+    assert len(bodies) == 2
+    assert bodies[0] is primary
+    assert bodies[1] is satellite
+    assert not bodies[1].is_fragment
+
+
+def test_roche_minimum_fragmentable_mass_creates_two_fragments():
+    primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
+    satellite = Body("Satellite", 2e15, 1e4, [2e6, 0, 0], [0, 0, 0])
+    assert 2e6 <= roche_limit(primary, satellite)
+
+    bodies = apply_roche_limit(
+        [primary, satellite],
+        SimulationSettings(fragment_count=4),
+        ROCHE_REQUIRED_SECONDS,
+    )
+
+    fragments = [body for body in bodies if body.name.startswith("Satellite_fragment")]
+    assert len(fragments) == 2
+    assert all(fragment.is_fragment for fragment in fragments)

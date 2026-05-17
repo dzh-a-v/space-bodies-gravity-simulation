@@ -7,7 +7,12 @@ from math import cos, pi, sin, sqrt
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.colors import WHITE
-from gravity_sim.core.constants import MIN_FRAGMENTABLE_MASS, MIN_FRAGMENTS, MIN_RADIUS
+from gravity_sim.core.constants import (
+    MIN_FRAGMENTABLE_MASS,
+    MIN_FRAGMENTS,
+    MIN_MASS,
+    MIN_RADIUS,
+)
 from gravity_sim.core.validation import validate_fragment_count
 from gravity_sim.core.vector import Vector3, norm, vector3
 
@@ -21,6 +26,12 @@ COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
 
 def can_fragment(body: Body) -> bool:
     return not body.is_fragment and body.mass >= MIN_FRAGMENTABLE_MASS
+
+
+def max_fragments_for_mass(body: Body) -> int:
+    """Return how many valid fragments this body can produce by mass."""
+
+    return int(body.mass // MIN_MASS)
 
 
 def unique_name(preferred: str, used_names: set[str]) -> str:
@@ -51,10 +62,14 @@ def create_fragments(
     if not can_fragment(parent):
         return []
 
-    actual_count = fragment_count
+    mass_limited_count = max_fragments_for_mass(parent)
+    if mass_limited_count < MIN_FRAGMENTS:
+        return []
+
+    actual_count = min(fragment_count, mass_limited_count)
     if available_slots is not None:
         actual_count = min(actual_count, max(0, available_slots))
-    if actual_count <= 0:
+    if actual_count < MIN_FRAGMENTS:
         return []
 
     rng = rng or random.Random()

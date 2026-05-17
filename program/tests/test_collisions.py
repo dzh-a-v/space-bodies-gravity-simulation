@@ -45,6 +45,21 @@ def test_equal_fast_collision_fragments_both_bodies():
     assert all(body.is_fragment for body in result)
 
 
+def test_minimum_fragmentable_mass_collision_creates_two_fragments_per_body():
+    left = Body("Left", 2e15, 1e4, [0, 0, 0], [1e5, 0, 0])
+    right = Body("Right", 2e15, 1e4, [2e4, 0, 0], [-1e5, 0, 0])
+
+    result = resolve_collisions(
+        [left, right],
+        SimulationSettings(fragment_count=8),
+        random.Random(0),
+    )
+
+    assert len(result) == 4
+    assert all(body.is_fragment for body in result)
+    assert all(body.mass >= 1e15 for body in result)
+
+
 def test_equal_slow_collision_merges():
     left = Body("Left", 5e15, 1e4, [0, 0, 0], [0, 0, 0])
     right = Body("Right", 5e15, 1e4, [2e4, 0, 0], [0, 0, 0])

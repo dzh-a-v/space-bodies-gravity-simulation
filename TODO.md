@@ -1,11 +1,4 @@
 # fix
-- when the object is destructing, need to check the expected mass of the fragments: the mass of each fragment must be above ≥ 1e15 kg. If it is impossible to destruct the object into set number of fragments, the program must compute the maximum possible number of fragments so that each fragment will have mass ≥1e15. if it is impossible to destruct the object following this rule (e.g. its mass is \<2e15), it mustn't destruct.
-  where to find:
-  - program/src/gravity_sim/core/constants.py	MIN_MASS = 1.0e15
-  - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет массу обычных объектов
-  - program/src/gravity_sim/physics/fragmentation.py	fragment_mass = parent.mass / actual_count
-  - program/src/gravity_sim/physics/fragmentation.py	Body(..., mass=fragment_mass, ...)
-
 - forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius.
   where to find:
   - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
@@ -27,6 +20,8 @@
  
 - add a button which enables / disables our coefficients for artificial changes of the bodies characteristics such as impulses upon collision etc.
   I think it can be done just by changing the coefficients if the user turns that parameter on/off, like it just won't affect anything this way
+
+- when body destructs, its fragments are too small in radius
 
 # check
 

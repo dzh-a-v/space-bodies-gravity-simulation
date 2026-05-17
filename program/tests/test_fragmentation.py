@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 from gravity_sim.core.body import Body
+from gravity_sim.core.constants import MIN_MASS
 from gravity_sim.core.vector import distance
 from gravity_sim.physics.fragmentation import create_fragments, merge_bodies
 
@@ -32,6 +33,34 @@ def test_available_slots_truncate_fragment_count():
 
     assert len(fragments) == 3
     assert np.isclose(sum(fragment.mass for fragment in fragments), parent.mass)
+
+
+def test_fragment_count_is_limited_by_minimum_fragment_mass():
+    parent = Body("Parent", 3e15, 9e3, [0, 0, 0], [0, 0, 0])
+
+    fragments = create_fragments(parent, 10, set())
+
+    assert len(fragments) == 3
+    assert all(fragment.mass >= MIN_MASS for fragment in fragments)
+    assert np.isclose(sum(fragment.mass for fragment in fragments), parent.mass)
+
+
+def test_fragment_count_can_drop_below_requested_minimum_for_mass_limit():
+    parent = Body("Parent", 3e15, 9e3, [0, 0, 0], [0, 0, 0])
+
+    fragments = create_fragments(parent, 4, set(), minimum=4)
+
+    assert len(fragments) == 3
+    assert all(fragment.mass >= MIN_MASS for fragment in fragments)
+
+
+def test_minimum_fragmentable_mass_can_create_two_fragments():
+    parent = Body("Parent", 2e15, 9e3, [0, 0, 0], [0, 0, 0])
+
+    fragments = create_fragments(parent, 4, set(), minimum=4)
+
+    assert len(fragments) == 2
+    assert all(fragment.mass >= MIN_MASS for fragment in fragments)
 
 
 def test_fragments_spawn_at_random_positions_inside_parent():

@@ -58,10 +58,13 @@ def apply_roche_limit(
         if not should_fragment:
             continue
 
-        consumed.add(satellite_index)
-        existing_after_removal = len(bodies) - len(consumed) + len(additions)
+        existing_after_removal = len(bodies) - len(consumed) - 1 + len(additions)
         available_slots = max(0, settings.max_objects - existing_after_removal)
-        used_names = {body.name for index, body in enumerate(bodies) if index not in consumed}
+        used_names = {
+            body.name
+            for index, body in enumerate(bodies)
+            if index not in consumed and index != satellite_index
+        }
         used_names.update(body.name for body in additions)
         fragment_count = max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
         fragments = create_fragments(
@@ -72,6 +75,10 @@ def apply_roche_limit(
             minimum=MIN_ROCHE_FRAGMENTS,
             rng=rng,
         )
+        if not fragments:
+            continue
+
+        consumed.add(satellite_index)
         if fragmenting_primary is not None:
             apply_attractor_impulse(satellite, fragmenting_primary, fragments)
         additions.extend(fragments)
