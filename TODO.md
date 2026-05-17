@@ -35,6 +35,9 @@
   - program/src/gravity_sim/physics/collisions.py    uses settings.fragment_count
   - program/src/gravity_sim/physics/roche.py    currently uses max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
  
+- add a button which enables / disables our coefficients for artificial changes of the bodies characteristics such as impulses upon collision etc.
+  I think it can be done just by changing the coefficients if the user turns that parameter on/off, like it just won't affect anything this way
+
 # check
 
 # feat
