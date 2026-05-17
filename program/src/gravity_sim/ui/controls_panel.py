@@ -35,6 +35,7 @@ class ControlsPanel(QWidget):
     settings_error = Signal(str)
     texture_rotation_toggled = Signal(bool)
     artificial_coefficients_toggled = Signal(bool)
+    body_names_toggled = Signal(bool)
 
     def __init__(self, presets: list[str]) -> None:
         super().__init__()
@@ -51,6 +52,9 @@ class ControlsPanel(QWidget):
         self.artificial_coefficients_button = QPushButton("Artificial coefficients: On")
         self.artificial_coefficients_button.setCheckable(True)
         self.artificial_coefficients_button.setChecked(True)
+        self.body_names_button = QPushButton("Names: On")
+        self.body_names_button.setCheckable(True)
+        self.body_names_button.setChecked(True)
         self.elapsed_time = QLabel("Elapsed: 0 s")
 
         self.time_step = QDoubleSpinBox()
@@ -99,6 +103,7 @@ class ControlsPanel(QWidget):
         layout.addLayout(file_row)
         layout.addWidget(self.texture_rotation_button)
         layout.addWidget(self.artificial_coefficients_button)
+        layout.addWidget(self.body_names_button)
         layout.addLayout(form)
         layout.addStretch(1)
 
@@ -112,6 +117,7 @@ class ControlsPanel(QWidget):
         self.artificial_coefficients_button.toggled.connect(
             self._emit_artificial_coefficients_toggled
         )
+        self.body_names_button.toggled.connect(self._emit_body_names_toggled)
         self.preset_combo.activated.connect(self._emit_preset)
         self.time_step.valueChanged.connect(self._emit_settings)
         self.time_scale.valueChanged.connect(self._emit_settings)
@@ -145,6 +151,10 @@ class ControlsPanel(QWidget):
         text = "Artificial coefficients: On" if enabled else "Artificial coefficients: Off"
         self.artificial_coefficients_button.setText(text)
         self.artificial_coefficients_toggled.emit(enabled)
+
+    def _emit_body_names_toggled(self, enabled: bool) -> None:
+        self.body_names_button.setText("Names: On" if enabled else "Names: Off")
+        self.body_names_toggled.emit(enabled)
 
     def _emit_settings(self) -> None:
         max_objects = self.max_objects.value()

@@ -134,8 +134,21 @@ Key files:
 Verification: `pytest` passed, `63 passed in 0.47s`.
 ___
 ___
+- toggle displaying objects names in the simulation 2d projections above the objects
+___
+Implemented.
 
+Added a `Names: On/Off` toggle in the controls panel. When enabled, each 2D projection shows the body name above the projected object; when disabled, the labels are removed.
 
+Changed:
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:55>)
+- [main_window.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/main_window.py:127>)
+- [projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/projection_view.py:25>)
+- [test_projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_projection_view.py:16>)
+
+Verification: `pytest` passed, `64 passed in 0.58s`.
+___
+___
 
 
 

@@ -22,6 +22,10 @@ def texture_rotation_degrees(time_seconds: float, enabled: bool) -> float:
     return (time_seconds % TEXTURE_ROTATION_PERIOD_SECONDS) / TEXTURE_ROTATION_PERIOD_SECONDS * 360.0
 
 
+def body_name_label_position(body: Body, axis_x: int, axis_y: int) -> tuple[float, float]:
+    return float(body.position[axis_x]), float(body.position[axis_y] + body.radius)
+
+
 class BodyTextureItem(pg.GraphicsObject):
     def __init__(self) -> None:
         super().__init__()
@@ -114,6 +118,9 @@ class ProjectionView(QWidget):
         super().__init__()
         self.plane = plane
         self._axis_x, self._axis_y = self.AXES[plane]
+        self._body_names_visible = True
+        self._bodies: list[Body] = []
+        self._name_labels: list[pg.TextItem] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -130,5 +137,37 @@ class ProjectionView(QWidget):
         self.plot.addItem(self.body_item)
         layout.addWidget(self.plot)
 
-    def set_bodies(self, bodies: list[Body], rotation_degrees: float = 0.0) -> None:
+    def set_bodies(
+        self,
+        bodies: list[Body],
+        rotation_degrees: float = 0.0,
+        show_names: bool | None = None,
+    ) -> None:
+        if show_names is not None:
+            self._body_names_visible = show_names
+        self._bodies = bodies
         self.body_item.set_bodies(bodies, self._axis_x, self._axis_y, rotation_degrees)
+        self._refresh_name_labels()
+
+    def set_body_names_visible(self, visible: bool) -> None:
+        self._body_names_visible = visible
+        self._refresh_name_labels()
+
+    def _refresh_name_labels(self) -> None:
+        for label in self._name_labels:
+            self.plot.removeItem(label)
+        self._name_labels.clear()
+
+        if not self._body_names_visible:
+            return
+
+        for body in self._bodies:
+            label = pg.TextItem(
+                text=body.name,
+                color=(235, 235, 235),
+                anchor=(0.5, 1.0),
+                fill=(0, 0, 0, 110),
+            )
+            label.setPos(*body_name_label_position(body, self._axis_x, self._axis_y))
+            self.plot.addItem(label)
+            self._name_labels.append(label)
