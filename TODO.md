@@ -5,6 +5,9 @@
 # check
 
 # feat
+- add simple png textures
+
+## later
 - lock view at one object
 - lock view at several objects
 
