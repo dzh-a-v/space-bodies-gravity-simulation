@@ -1,5 +1,6 @@
 docs/tz/out/
 #instructions.md
+LEFT.md
 
 __pycache__/
 *.py[cod]
