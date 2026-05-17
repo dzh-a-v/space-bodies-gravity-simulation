@@ -23,7 +23,7 @@ from gravity_sim.physics.engine import create_default_engine
 from .body_table_model import BodyTableModel
 from .controls_panel import ControlsPanel
 from .dialogs import BodyDialog, show_error
-from .projection_view import ProjectionView
+from .projection_view import ProjectionView, texture_rotation_degrees
 
 
 class MainWindow(QMainWindow):
@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         self.engine = create_default_engine()
         self.engine.rng = random.Random(0)
         self.running = False
+        self.texture_rotation_enabled = True
 
         presets = list_presets()
         self.controls = ControlsPanel(presets)
@@ -88,6 +89,7 @@ class MainWindow(QMainWindow):
         self.controls.save_csv_requested.connect(self._save_csv)
         self.controls.preset_requested.connect(self._load_preset)
         self.controls.settings_changed.connect(self._apply_settings)
+        self.controls.texture_rotation_toggled.connect(self._set_texture_rotation_enabled)
 
         if presets:
             self._load_preset(presets[0])
@@ -97,6 +99,10 @@ class MainWindow(QMainWindow):
         self.engine.state.settings.time_step = time_step
         self.engine.state.settings.time_scale = time_scale
         self.engine.state.settings.fragment_count = fragment_count
+
+    def _set_texture_rotation_enabled(self, enabled: bool) -> None:
+        self.texture_rotation_enabled = enabled
+        self._refresh()
 
     def _set_table_editable(self, editable: bool) -> None:
         self.table_model.set_editable(editable)
@@ -145,8 +151,12 @@ class MainWindow(QMainWindow):
         bodies = self.engine.state.bodies
         self.controls.set_elapsed_time(self.engine.state.time_seconds)
         self.table_model.set_bodies(bodies)
+        rotation_degrees = texture_rotation_degrees(
+            self.engine.state.time_seconds,
+            self.texture_rotation_enabled,
+        )
         for projection in self.projections.values():
-            projection.set_bodies(bodies)
+            projection.set_bodies(bodies, rotation_degrees)
 
     def _add_body(self) -> None:
         if self.running:

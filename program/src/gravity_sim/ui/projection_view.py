@@ -2,12 +2,105 @@
 
 from __future__ import annotations
 
-import numpy as np
+from importlib import resources
+
 import pyqtgraph as pg
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from gravity_sim.core.body import Body
+
+TEXTURE_PACKAGE = "gravity_sim.resources.textures"
+TEXTURE_ROTATION_PERIOD_SECONDS = 86_400.0
+
+
+def texture_rotation_degrees(time_seconds: float, enabled: bool) -> float:
+    if not enabled:
+        return 0.0
+    return (time_seconds % TEXTURE_ROTATION_PERIOD_SECONDS) / TEXTURE_ROTATION_PERIOD_SECONDS * 360.0
+
+
+class BodyTextureItem(pg.GraphicsObject):
+    def __init__(self) -> None:
+        super().__init__()
+        self._spots: list[dict] = []
+        self._bounds = QRectF()
+        self._pixmaps: dict[str, QPixmap] = {}
+
+    def set_bodies(
+        self,
+        bodies: list[Body],
+        axis_x: int,
+        axis_y: int,
+        rotation_degrees: float,
+    ) -> None:
+        self.prepareGeometryChange()
+        self._spots = [
+            {
+                "x": float(body.position[axis_x]),
+                "y": float(body.position[axis_y]),
+                "radius": float(body.radius),
+                "texture": body.texture,
+                "rotation_degrees": rotation_degrees,
+                "color": body.color or (80, 170, 255),
+            }
+            for body in bodies
+        ]
+        self._bounds = self._compute_bounds()
+        self.update()
+
+    def boundingRect(self) -> QRectF:
+        return self._bounds
+
+    def paint(self, painter: QPainter, *args) -> None:
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+        for spot in self._spots:
+            radius = spot["radius"]
+            target = QRectF(
+                spot["x"] - radius,
+                spot["y"] - radius,
+                radius * 2.0,
+                radius * 2.0,
+            )
+            pixmap = self._pixmap_for(spot["texture"])
+            if pixmap is not None and not pixmap.isNull():
+                clip_path = QPainterPath()
+                clip_path.addEllipse(target)
+                painter.save()
+                painter.setClipPath(clip_path)
+                painter.translate(target.center())
+                painter.rotate(spot["rotation_degrees"])
+                painter.translate(-target.center())
+                painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
+                painter.restore()
+                continue
+
+            red, green, blue = spot["color"]
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(red, green, blue, 220))
+            painter.drawEllipse(target)
+
+    def _compute_bounds(self) -> QRectF:
+        if not self._spots:
+            return QRectF()
+
+        min_x = min(spot["x"] - spot["radius"] for spot in self._spots)
+        max_x = max(spot["x"] + spot["radius"] for spot in self._spots)
+        min_y = min(spot["y"] - spot["radius"] for spot in self._spots)
+        max_y = max(spot["y"] + spot["radius"] for spot in self._spots)
+        return QRectF(min_x, min_y, max_x - min_x, max_y - min_y)
+
+    def _pixmap_for(self, texture: str | None) -> QPixmap | None:
+        if texture is None:
+            return None
+        if texture not in self._pixmaps:
+            with resources.as_file(resources.files(TEXTURE_PACKAGE) / texture) as path:
+                self._pixmaps[texture] = QPixmap(str(path))
+        return self._pixmaps[texture]
 
 
 class ProjectionView(QWidget):
@@ -33,34 +126,9 @@ class ProjectionView(QWidget):
         self.plot.showGrid(x=True, y=True, alpha=0.25)
         self.plot.setLabel("bottom", plane[0], units="m")
         self.plot.setLabel("left", plane[1], units="m")
-        # pxMode=False makes `size` a diameter in data units (meters), so a body
-        # is drawn at its true physical radius — matching the collision test
-        # `distance <= r_left + r_right`. With pxMode=True the dots were a fixed
-        # pixel size, so bodies appeared to collide before visually touching.
-        self.scatter = pg.ScatterPlotItem(
-            pxMode=False,
-            pen=pg.mkPen(None),
-            brush=pg.mkBrush(80, 170, 255, 210),
-        )
-        self.plot.addItem(self.scatter)
+        self.body_item = BodyTextureItem()
+        self.plot.addItem(self.body_item)
         layout.addWidget(self.plot)
 
-    def set_bodies(self, bodies: list[Body]) -> None:
-        if not bodies:
-            self.scatter.setData([], [])
-            return
-
-        x = np.array([body.position[self._axis_x] for body in bodies], dtype=float)
-        y = np.array([body.position[self._axis_y] for body in bodies], dtype=float)
-        # Diameter in meters — matches the collision condition exactly.
-        sizes = np.array([2.0 * body.radius for body in bodies], dtype=float)
-        spots = [
-            {
-                "pos": (x[index], y[index]),
-                "size": sizes[index],
-                "brush": pg.mkBrush(*(body.color or (80, 170, 255)), 220),
-                "pen": pg.mkPen(None),
-            }
-            for index, body in enumerate(bodies)
-        ]
-        self.scatter.setData(spots)
+    def set_bodies(self, bodies: list[Body], rotation_degrees: float = 0.0) -> None:
+        self.body_item.set_bodies(bodies, self._axis_x, self._axis_y, rotation_degrees)

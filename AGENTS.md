@@ -15,7 +15,7 @@
   cd program
   pip install -e .[dev]   # one-time
   gravity-sim             # GUI
-  pytest                  # 24 tests, addopts=-q via pyproject.toml
+  pytest                  # 42 tests, addopts=-q via pyproject.toml
   ```
 - **Working dir convention:** the user's terminal is usually at `C:\spbpu\year2\digal\program`. Module imports always go through `gravity_sim.*` (the package root is `program/src/gravity_sim`).
 
@@ -41,6 +41,7 @@ digal/
     │   │   ├── body.py        @dataclass(slots=True) Body. Has copy().
     │   │   ├── vector.py      Vector3 = numpy float64 (3,). vector3() factory validates.
     │   │   ├── colors.py      RGB tuples. WHITE reserved for merge products.
+    │   │   ├── textures.py    Discovers built-in planet texture ids from packaged PNGs.
     │   │   ├── constants.py   ALL spec-mandated bounds live here. Edit with care.
     │   │   ├── system_state.py SimulationSettings + SystemState dataclasses.
     │   │   └── validation.py  validate_body / validate_bodies / validate_fragment_count.
@@ -57,14 +58,15 @@ digal/
     │   │   ├── csv_saver.py   save_bodies_to_csv (validates first).
     │   │   └── presets.py     list_presets / load_preset (read from importlib.resources).
     │   ├── resources/presets/ Built-in CSV scenarios. See §5.
+    │   ├── resources/textures/ Built-in planet PNG textures.
     │   └── ui/
     │       ├── app.py             Qt bootstrap.
     │       ├── main_window.py     Wires controls, table, projections, engine, QTimer.
     │       ├── controls_panel.py  Buttons, spinboxes, signals.
     │       ├── body_table_model.py Editable QAbstractTableModel. See §7.
-    │       ├── projection_view.py 2D pyqtgraph scatter (XY/XZ/YZ). pxMode=False.
+    │       ├── projection_view.py 2D pyqtgraph textured body renderer (XY/XZ/YZ).
     │       └── dialogs.py         BodyDialog (Add Body), show_error.
-    └── tests/                  pytest, 24 tests. See §8.
+    └── tests/                  pytest, 42 tests. See §8.
 ```
 
 The compiled `_cpp_backend.cp312-win_amd64.pyd` exists alongside `__init__.py` but is not currently wired into the import path. Ignore it unless the user asks about it.
@@ -81,6 +83,7 @@ Fields:
 - `position, velocity, acceleration: Vector3` (numpy `(3,)` float64) — **mutable in place**
 - `is_fragment: bool` — fragments cannot fragment again (see `can_fragment`)
 - `color: tuple[int,int,int] | None` — WHITE = merge product (reserved)
+- `texture: str | None` — built-in PNG texture id; assigned by the engine's separate texture RNG when missing. Non-fragment bodies get unique textures while enough PNGs are available; fragments inherit parent texture.
 - `roche_exposure_seconds: dict[str, float]` — keyed by primary name; resets when satellite leaves that primary's Roche zone
 
 Always use `Body.copy()` when threading bodies through the engine; the dataclass holds numpy arrays and you'll get aliasing bugs otherwise. The pattern in `main_window._add_body` is canonical.
@@ -146,8 +149,8 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
   - `ratio ≥ 1/10` → fragment iff `relative_speed > escape_velocity(smaller)`
   - When fragmentation outcome can't actually produce fragments (e.g. parents are already fragments), the resolver falls back to a merge.
 - **Velocity Verlet** is the only integrator. Don't swap it without spec/user sign-off. It mutates bodies in place.
-- **`merge_bodies` conserves momentum, not KE** (inelastic). Result is named after the more massive body and gets `color = WHITE`.
-- **Projection scatter** uses `pxMode=False` so dot diameter equals true `2·radius` in meters — must match the collision condition `distance ≤ r_a + r_b`. Don't switch back to pixel mode without revisiting that match.
+- **`merge_bodies` conserves momentum, not KE** (inelastic). Result is named after the more massive body, gets `color = WHITE`, and clears `texture` so the merged body is drawn white.
+- **Projection textures** are drawn by `BodyTextureItem` into a `2·radius` data-coordinate square clipped to a circle, so visual diameter still matches the collision condition `distance ≤ r_a + r_b`. Texture rotation is visual only: one full turn per 86,400 simulated seconds when enabled.
 
 ---
 
@@ -157,11 +160,11 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 - **Editing rule:** `BodyTableModel.set_editable(False)` while running, `True` while paused/reset. Edits go through `_commit_table_edit → engine.set_bodies → validate_bodies`. Failed edits raise into `set_error_callback` which surfaces a dialog.
 - The model returns `repr(float)` for `EditRole` (full precision) and `f"{v:.6g}"` for `DisplayRole`.
 - Add-body and load-CSV are gated on `not self.running`. Save-CSV is allowed at any time.
-- Controls panel emits Qt Signals; main window connects them. Don't bypass the signal layer.
+- Controls panel emits Qt Signals; main window connects them. Don't bypass the signal layer. The texture rotation button is checkable and controls all three projection views.
 
 ---
 
-## 8. Tests (`tests/*.py` — all 24 pass at HEAD)
+## 8. Tests (`tests/*.py` — all 42 pass at HEAD)
 
 | Test file | What it pins down |
 |---|---|
@@ -172,7 +175,8 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 | `test_fragmentation.py` | mass conservation, fragment-name prefix, `is_fragment` block, slot truncation |
 | `test_roche.py` | exposure accumulates over 24 h then fragments; resets when leaving zone |
 | `test_csv_io.py` | round-trip; missing columns / dup names / non-numeric all raise; presets all load |
-| `test_colors.py` | unique non-white initial palette; fragments inherit parent color; merge → WHITE |
+| `test_colors.py` | unique non-white initial palette; dynamic texture discovery; non-repeating random textures while possible; fragments inherit parent color/texture; merge → WHITE with no texture, preserved by engine |
+| `test_projection_view.py` | texture rotation angle: one full visual turn per simulated day; toggle off → 0° |
 
 `pytest` from `program/` Just Works (config in `pyproject.toml`). When you change physics, run all tests. When you change UI, tests don't cover Qt — verify by reasoning + targeted snippets via the engine API.
 
