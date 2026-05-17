@@ -66,10 +66,9 @@ def apply_roche_limit(
             if index not in consumed and index != satellite_index
         }
         used_names.update(body.name for body in additions)
-        fragment_count = max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
         fragments = create_fragments(
             satellite,
-            fragment_count,
+            settings.roche_fragment_count,
             used_names,
             available_slots=available_slots,
             minimum=MIN_ROCHE_FRAGMENTS,

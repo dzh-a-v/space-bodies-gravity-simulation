@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .body import Body
-from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS
+from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS, MIN_FRAGMENTS, MIN_ROCHE_FRAGMENTS
 
 DEFAULT_TIME_STEP = 1.0
 DEFAULT_TIME_SCALE = 100.0
@@ -16,6 +16,7 @@ class SimulationSettings:
     time_step: float = DEFAULT_TIME_STEP
     time_scale: float = DEFAULT_TIME_SCALE
     fragment_count: int = 8
+    roche_fragment_count: int = 8
     max_objects: int = FRAGMENT_OBJECT_LIMIT
     artificial_coefficients_enabled: bool = True
 
@@ -37,6 +38,7 @@ class SystemState:
                 time_step=self.settings.time_step,
                 time_scale=self.settings.time_scale,
                 fragment_count=self.settings.fragment_count,
+                roche_fragment_count=self.settings.roche_fragment_count,
                 max_objects=self.settings.max_objects,
                 artificial_coefficients_enabled=(
                     self.settings.artificial_coefficients_enabled
@@ -49,4 +51,11 @@ class SystemState:
         return {body.name for body in self.bodies}
 
     def clamp_fragment_count(self) -> None:
-        self.settings.fragment_count = max(2, min(MAX_FRAGMENTS, self.settings.fragment_count))
+        self.settings.fragment_count = max(
+            MIN_FRAGMENTS,
+            min(MAX_FRAGMENTS, self.settings.fragment_count),
+        )
+        self.settings.roche_fragment_count = max(
+            MIN_ROCHE_FRAGMENTS,
+            min(MAX_FRAGMENTS, self.settings.roche_fragment_count),
+        )

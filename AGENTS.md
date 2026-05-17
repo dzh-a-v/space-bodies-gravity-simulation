@@ -50,7 +50,7 @@ digal/
     │   │   ├── gravity.py     DirectGravitySolver (O(n²) exact 1/r²). NO softening — see §6.
     │   │   ├── integrators.py velocity_verlet_step (mutates bodies in place).
     │   │   ├── collisions.py  bodies_touch, choose_collision_outcome, resolve_collisions.
-    │   │   ├── fragmentation.py create_fragments (Fibonacci ball lattice), merge_bodies.
+    │   │   ├── fragmentation.py create_fragments (random non-overlapping layout), merge_bodies.
     │   │   └── roche.py       roche_limit, apply_roche_limit (24 h cumulative).
     │   ├── io/
     │   │   ├── csv_schema.py  CSV column tuple — single source of truth.
@@ -141,7 +141,7 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 - **No gravity softening.** `DirectGravitySolver` uses exact 1/r². The user explicitly rejected adding softening at `r_a + r_b` because it makes fragment clouds re-coalesce too fast. Without it, very tight fragment clusters can produce numerical kicks that fling some fragments far. Both behaviours are known. **Do not re-introduce softening without checking with the user.**
 - **No fragment-fragment merge cooldown.** Tried and rejected: fragments still attract each other gravitationally, so a cooldown made them ghost through each other. Reverted in full.
 - **Fragments share the parent's exact velocity** — this is intentional. Adding velocity dispersion is a candidate future change but requires user sign-off; the current contract is "only spawn positions differ from the parent".
-- **Fragment layout** uses a Fibonacci ball-lattice with each fragment radius = `min_centre_distance / 4`, capped at `MIN_RADIUS`. Fragments are *denser* than the parent (mass conserved, total volume not conserved). This is by design — the volume-conserving radius caused immediate re-merging.
+- **Fragment layout** uses randomized non-overlapping placement inside the parent. Fragment radius targets `FRAGMENT_TARGET_VOLUME_FRACTION = 0.1` total parent volume, then binary-searches downward only if that target cannot fit. If even `MIN_RADIUS` fragments cannot fit, fragmentation returns `[]`.
 - **Roche fragmentation requires `is_fragment == False`** (`can_fragment`). Fragments never re-fragment, even from Roche. Roche also uses `MIN_ROCHE_FRAGMENTS = 4`, distinct from the user-controlled `fragment_count`.
 - **Collision branching:**
   - mass ratio `< 1/100` → always merge

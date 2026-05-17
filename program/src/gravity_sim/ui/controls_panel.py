@@ -20,6 +20,7 @@ from gravity_sim.core.constants import (
     MAX_FRAGMENTS,
     MAX_OBJECTS,
     MIN_FRAGMENTS,
+    MIN_ROCHE_FRAGMENTS,
 )
 from gravity_sim.core.system_state import DEFAULT_TIME_SCALE, DEFAULT_TIME_STEP
 
@@ -32,7 +33,7 @@ class ControlsPanel(QWidget):
     load_csv_requested = Signal()
     save_csv_requested = Signal()
     preset_requested = Signal(str)
-    settings_changed = Signal(float, float, int, int)
+    settings_changed = Signal(float, float, int, int, int)
     settings_error = Signal(str)
     texture_rotation_toggled = Signal(bool)
     artificial_coefficients_toggled = Signal(bool)
@@ -73,6 +74,10 @@ class ControlsPanel(QWidget):
         self.fragment_count.setRange(MIN_FRAGMENTS, MAX_FRAGMENTS)
         self.fragment_count.setValue(8)
 
+        self.roche_fragment_count = QSpinBox()
+        self.roche_fragment_count.setRange(MIN_ROCHE_FRAGMENTS, MAX_FRAGMENTS)
+        self.roche_fragment_count.setValue(8)
+
         self.max_objects = QSpinBox()
         self.max_objects.setRange(0, MAX_OBJECTS)
         self.max_objects.setSingleStep(1000)
@@ -95,7 +100,8 @@ class ControlsPanel(QWidget):
         form.addRow("Elapsed", self.elapsed_time)
         form.addRow("Time step", self.time_step)
         form.addRow("Time scale", self.time_scale)
-        form.addRow("Fragments", self.fragment_count)
+        form.addRow("Collision fragments", self.fragment_count)
+        form.addRow("Roche fragments", self.roche_fragment_count)
         form.addRow("Max objects", self.max_objects)
         form.addRow("Preset", self.preset_combo)
 
@@ -123,6 +129,7 @@ class ControlsPanel(QWidget):
         self.time_step.valueChanged.connect(self._emit_settings)
         self.time_scale.valueChanged.connect(self._emit_settings)
         self.fragment_count.valueChanged.connect(self._emit_settings)
+        self.roche_fragment_count.valueChanged.connect(self._emit_settings)
         self.max_objects.valueChanged.connect(self._emit_settings)
 
     def set_running(self, running: bool) -> None:
@@ -173,5 +180,6 @@ class ControlsPanel(QWidget):
             self.time_step.value(),
             self.time_scale.value(),
             self.fragment_count.value(),
+            self.roche_fragment_count.value(),
             max_objects,
         )

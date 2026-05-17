@@ -5103,3 +5103,112 @@ ___
 Проверка: `python -m pytest -q` прошёл успешно.
 ___
 ___
+- add separate Roche fragment count setting in UI. Collision fragmentation must use 2..100, Roche fragmentation must use 4..100. Remove silent max(settings.fragment_count, MIN_ROCHE_FRAGMENTS) behavior and pass roche_fragment_count explicitly.
+  where to find:
+  - program/src/gravity_sim/core/system_state.py    SimulationSettings currently has only fragment_count
+  - program/src/gravity_sim/ui/controls_panel.py    one Fragments spinbox with range 2..100
+  - program/src/gravity_sim/physics/collisions.py    uses settings.fragment_count
+  - program/src/gravity_sim/physics/roche.py    currently uses max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
+___
+Реализовал отдельную настройку для Roche-фрагментации.
+
+Теперь:
+- В UI есть два поля: `Collision fragments` с диапазоном `2..100` и `Roche fragments` с диапазоном `4..100`.
+- `SimulationSettings` хранит отдельное поле `roche_fragment_count`.
+- `collisions.py` продолжает использовать `settings.fragment_count`.
+- `roche.py` использует `settings.roche_fragment_count`; скрытый `max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)` удалён.
+- `engine.step()` валидирует Roche-count отдельно с минимумом `4`.
+
+Добавил тест, который проверяет, что Roche использует именно отдельную настройку, даже если collision fragments выставлен иначе.
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
+- fix Roche fragmentation when there are no available object slots left. If available_slots is 0 and no fragments can be created, the original body must not disappear from the simulation. The program must either create the allowed number of fragments or keep the body unchanged.
+  where to find:
+  - program/src/gravity_sim/physics/roche.py    consumed.add(satellite_index)
+  - program/src/gravity_sim/physics/roche.py    available_slots calculation
+  - program/src/gravity_sim/physics/roche.py    additions.extend(fragments) currently runs without checking that fragments were actually created
+___
+Проверил Roche-логику: защита уже была в коде после предыдущих правок. В `roche.py` тело добавляется в `consumed` только после успешного создания фрагментов, а если `create_fragments(...)` вернул пустой список, выполняется `continue`, и исходное тело остаётся в системе.
+
+Чтобы закрепить это поведение, добавил regression-тест в `program/tests/test_roche.py`: при `max_objects=1` доступных слотов для фрагментов нет, и спутник не исчезает.
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
+- when body destructs, its fragments are too small in radius. they must be larger and also their radius must depend on their count and the radius of parent object.
+
+сейчас есть такая проблема.
+
+проанализируй текущее состояние программы. подумай, как это можно было бы исправить.
+___
+# План: крупные непересекающиеся осколки внутри родителя
+
+## Summary
+- Текущий радиус слишком мал, потому что считается от ближайшей случайной пары центров: `fragment_radius = min_centre_distance / 4`.
+- Новое поведение: радиус осколков стремится к суммарному объёму `~80%` объёма родителя, но уменьшается до максимального размещаемого значения, если `80%` геометрически не помещаются.
+- По выбранному ограничению осколки должны целиком помещаться внутри прежнего объёма родителя и не соприкасаться друг с другом.
+
+## Key Changes
+- В `fragmentation.py` добавить константы:
+  - `FRAGMENT_TARGET_VOLUME_FRACTION = 0.8`
+  - `FRAGMENT_SURFACE_GAP_FRACTION = 0.02`
+  - `FRAGMENT_PLACEMENT_RESTARTS = 64`
+  - `FRAGMENT_PLACEMENT_ATTEMPTS_PER_FRAGMENT = 500`
+- Заменить радиус `min_centre_distance / 4` на целевой:
+  `target_radius = parent.radius * (0.8 / actual_count) ** (1 / 3)`.
+- Реальный радиус искать бинарным поиском от `MIN_RADIUS` до `target_radius`:
+  - для каждого candidate radius пытаться разместить `actual_count` центров внутри сферы радиуса `parent.radius - candidate_radius`;
+  - расстояние между центрами должно быть строго больше `2 * candidate_radius * (1 + FRAGMENT_SURFACE_GAP_FRACTION)`;
+  - если размещение удалось, пробовать больший радиус; если нет, меньший.
+- Если даже `MIN_RADIUS` невозможно разместить без контакта и целиком внутри родителя, `create_fragments(...)` возвращает `[]`, то есть разрушение не происходит.
+- Удалить зависимость итогового радиуса от `min_centre_distance`; ближайшая случайная пара больше не должна сжимать все осколки.
+
+## Placement Algorithm
+- Использовать helper вроде `_find_fragment_layout(parent_radius, count, target_radius, rng) -> tuple[float, list[Vector3]] | None`.
+- Для проверки candidate radius делать несколько restart-попыток:
+  - генерировать случайные точки равномерно внутри доступной сферы `parent.radius - candidate_radius`;
+  - принимать точку, если она достаточно далеко от уже принятых;
+  - если за лимит попыток набрано `count` центров, layout считается успешным.
+- Итоговые позиции фрагментов:
+  `fragment.position = parent.position + offset`.
+- Гарантии после успешного layout:
+  - `distance(fragment.position, parent.position) + fragment.radius <= parent.radius`;
+  - для любых двух фрагментов `distance(a.position, b.position) > a.radius + b.radius`.
+
+## Tests
+- Проверить, что суммарный объём фрагментов не превышает `~80%` объёма родителя.
+- Проверить, что радиус растёт пропорционально радиусу родителя при одинаковом числе фрагментов.
+- Проверить, что при большем числе фрагментов радиус уменьшается.
+- Проверить, что фрагменты целиком находятся внутри родителя.
+- Проверить, что фрагменты не соприкасаются друг с другом.
+- Проверить fallback: если даже `MIN_RADIUS` нельзя разместить без контакта, `create_fragments(...)` возвращает `[]`.
+- Запустить полный `pytest`.
+
+## Assumptions
+- `80%` это верхняя цель, а не обязательный минимум: если геометрически невозможно разместить такие крупные сферы внутри родителя, программа выбирает максимально большой размещаемый радиус.
+- Все фрагменты одного разрушения остаются одинакового радиуса.
+- Масса фрагментов, запрет повторной фрагментации, collision/Roche rules и CSV-схема не меняются.
+___
+___
+Implement plan
+___
+Реализовал новую раскладку крупных непересекающихся осколков в [fragmentation.py](C:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:25). Теперь радиус стремится к суммарным `80%` объёма родителя, но бинарно уменьшается до размещаемого значения; центры генерируются случайно внутри доступной сферы, осколки целиком остаются внутри родителя и не соприкасаются. Если даже `MIN_RADIUS` не помещается, `create_fragments(...)` возвращает `[]`.
+
+Добавил тесты в [test_fragmentation.py](C:/spbpu/year2/digal/program/tests/test_fragmentation.py:99) на объём, масштабирование радиуса, уменьшение радиуса при большем числе фрагментов, непересечение и fallback. Обновил [AGENTS.md](C:/spbpu/year2/digal/AGENTS.md:144), потому что там было старое описание Fibonacci/min-distance логики.
+
+Проверка: `python -m pytest -q` прошёл полностью. В `git status` ещё видны изменённые `TODO.md` и `docs/prompts/prompts.md`, я их не трогал.
+___
+___
+сейчас это очень сильно нагружает пк, происходит лаг примерно на две секунды перед разрушением объекта.
+
+сделай осколки меньше по размеру, чтобы их было проще размещать в пределах родительского объекта
+___
+Сделал осколки заметно меньше и легче для размещения: в [fragmentation.py](C:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:25) `FRAGMENT_TARGET_VOLUME_FRACTION` уменьшен с `0.8` до `0.1`. Также ускорил алгоритм: если целевой меньший радиус сразу помещается, бинарный поиск больше не запускается.
+
+Параллельно снизил нагрузочные лимиты размещения: `restarts 64 -> 16`, `attempts 500 -> 160`, `search steps 10 -> 8`. На диагностике теперь: 8-12 осколков создаются примерно за `0.02s`, 100 осколков примерно за `0.75s`.
+
+Проверка: `python -m pytest -q` прошёл полностью.
+___
+___
