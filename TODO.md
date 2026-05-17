@@ -1,5 +1,5 @@
 # fix
-- after fragmentation, the fragments from the large object's side must be more attracted to it (it can be achieved by adding some acceleration towards that direction)
+- the fragments shouldn't merge again so fast and so often (NO direct restriction)
 - upon collision, the fragments must go to different sides: the objects at the collided side must go further and hit the object in front of them (they can merge then), and other must go forward-left and forward-right (depending on where they are from the collision point).
 
 # check
