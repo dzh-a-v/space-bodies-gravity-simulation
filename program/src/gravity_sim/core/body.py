@@ -18,6 +18,7 @@ class Body:
     velocity: Vector3
     acceleration: Vector3 = field(default_factory=vector3)
     is_fragment: bool = False
+    fragment_origin: str | None = None
     color: Color | None = None
     roche_exposure_seconds: dict[str, float] = field(default_factory=dict)
 
@@ -46,6 +47,7 @@ class Body:
             velocity=self.velocity.copy(),
             acceleration=self.acceleration.copy(),
             is_fragment=self.is_fragment,
+            fragment_origin=self.fragment_origin,
             color=self.color,
             roche_exposure_seconds=dict(self.roche_exposure_seconds),
         )

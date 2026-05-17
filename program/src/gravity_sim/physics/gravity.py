@@ -10,6 +10,8 @@ from gravity_sim.core.body import Body
 from gravity_sim.core.constants import GRAVITATIONAL_CONSTANT
 from gravity_sim.core.vector import Vector3, vector3
 
+FRAGMENT_SELF_GRAVITY_SCALE = 0.1
+
 
 class GravitySolver(Protocol):
     def compute_accelerations(self, bodies: list[Body]) -> list[Vector3]:
@@ -31,12 +33,32 @@ class DirectGravitySolver:
                 if distance_squared == 0.0:
                     continue
 
+                interaction_scale = _interaction_scale(left, right)
                 distance_cubed = distance_squared * float(np.sqrt(distance_squared))
                 accelerations[left_index] += (
-                    GRAVITATIONAL_CONSTANT * right.mass * delta / distance_cubed
+                    interaction_scale
+                    * GRAVITATIONAL_CONSTANT
+                    * right.mass
+                    * delta
+                    / distance_cubed
                 )
                 accelerations[right_index] -= (
-                    GRAVITATIONAL_CONSTANT * left.mass * delta / distance_cubed
+                    interaction_scale
+                    * GRAVITATIONAL_CONSTANT
+                    * left.mass
+                    * delta
+                    / distance_cubed
                 )
 
         return accelerations
+
+
+def _interaction_scale(left: Body, right: Body) -> float:
+    if (
+        left.is_fragment
+        and right.is_fragment
+        and left.fragment_origin is not None
+        and left.fragment_origin == right.fragment_origin
+    ):
+        return FRAGMENT_SELF_GRAVITY_SCALE
+    return 1.0

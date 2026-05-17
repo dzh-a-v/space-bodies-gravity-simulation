@@ -116,6 +116,7 @@ def create_fragments(
     fragment_radius = max(fragment_radius, MIN_RADIUS)
 
     fragments: list[Body] = []
+    fragment_origin = parent.fragment_origin or parent.name
     for index in range(actual_count):
         offset = offsets[index] * cloud_scale
         name = unique_name(f"{parent.name}_fragment_{index + 1}", used_names)
@@ -128,6 +129,7 @@ def create_fragments(
                 velocity=parent.velocity.copy(),
                 acceleration=parent.acceleration.copy(),
                 is_fragment=True,
+                fragment_origin=fragment_origin,
                 color=parent.color,
             )
         )
@@ -189,6 +191,11 @@ def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) ->
     velocity = (left.velocity * left.mass + right.velocity * right.mass) / total_mass
     radius = (left.radius**3 + right.radius**3) ** (1.0 / 3.0)
     primary_name = left.name if left.mass >= right.mass else right.name
+    fragment_origin = (
+        left.fragment_origin
+        if left.fragment_origin is not None and left.fragment_origin == right.fragment_origin
+        else None
+    )
 
     name = primary_name
     if used_names is not None:
@@ -202,5 +209,6 @@ def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) ->
         velocity=velocity,
         acceleration=vector3(),
         is_fragment=left.is_fragment or right.is_fragment,
+        fragment_origin=fragment_origin,
         color=WHITE,
     )
