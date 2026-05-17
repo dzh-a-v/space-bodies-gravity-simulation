@@ -149,7 +149,7 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
   - `ratio ≥ 1/10` → fragment iff `relative_speed > escape_velocity(smaller)`
   - When fragmentation outcome can't actually produce fragments (e.g. parents are already fragments), the resolver falls back to a merge.
 - **Velocity Verlet** is the only integrator. Don't swap it without spec/user sign-off. It mutates bodies in place.
-- **`merge_bodies` conserves momentum, not KE** (inelastic). Result is named after the more massive body and gets `color = WHITE`.
+- **`merge_bodies` conserves momentum, not KE** (inelastic). Result is named after the more massive body, gets `color = WHITE`, and clears `texture` so the merged body is drawn white.
 - **Projection textures** are drawn by `BodyTextureItem` into a `2·radius` data-coordinate square clipped to a circle, so visual diameter still matches the collision condition `distance ≤ r_a + r_b`. Texture rotation is visual only: one full turn per 86,400 simulated seconds when enabled.
 
 ---
@@ -175,7 +175,7 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 | `test_fragmentation.py` | mass conservation, fragment-name prefix, `is_fragment` block, slot truncation |
 | `test_roche.py` | exposure accumulates over 24 h then fragments; resets when leaving zone |
 | `test_csv_io.py` | round-trip; missing columns / dup names / non-numeric all raise; presets all load |
-| `test_colors.py` | unique non-white initial palette; random built-in textures; fragments inherit parent color/texture; merge → WHITE and keeps larger body's texture |
+| `test_colors.py` | unique non-white initial palette; random built-in textures; fragments inherit parent color/texture; merge → WHITE with no texture |
 | `test_projection_view.py` | texture rotation angle: one full visual turn per simulated day; toggle off → 0° |
 
 `pytest` from `program/` Just Works (config in `pyproject.toml`). When you change physics, run all tests. When you change UI, tests don't cover Qt — verify by reasoning + targeted snippets via the engine API.

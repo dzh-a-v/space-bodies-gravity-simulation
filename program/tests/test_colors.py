@@ -71,10 +71,11 @@ def test_merged_body_is_white():
     assert merged.color == WHITE
 
 
-def test_merged_body_keeps_more_massive_texture():
+def test_merged_body_drops_texture_so_white_color_is_visible():
     left = Body("Left", 2e20, 1e6, [0, 0, 0], [0, 0, 0], texture="planet_01.png")
     right = Body("Right", 1e20, 1e6, [0, 0, 0], [0, 0, 0], texture="planet_05.png")
 
     merged = merge_bodies(left, right)
 
-    assert merged.texture == left.texture
+    assert merged.color == WHITE
+    assert merged.texture is None
