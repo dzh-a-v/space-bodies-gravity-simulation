@@ -90,3 +90,26 @@ python -m pytest
 ```
 ___
 ___
+- forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius. If user enters invalid numbers, a window must pop and inform him about that.
+  where to find:
+  - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
+  - program/src/gravity_sim/ui/body_table_model.py    _apply_edit(...) writes body.position, body.velocity, body.acceleration directly
+  - program/src/gravity_sim/core/validation.py    validate_body(...) currently checks finite only for mass and radius
+  ___
+Implemented.
+
+Changed:
+- [validation.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/validation.py:46>) now rejects non-finite `position`, `velocity`, and `acceleration` values.
+- [body_table_model.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/body_table_model.py:155>) now applies table vector edits through `vector3(...)`, so `nan`, `inf`, and `-inf` are rejected before commit.
+- Added regression tests for table edits and core validation in [test_body_table_model.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_body_table_model.py:17>) and [test_validation.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_validation.py:26>).
+
+The existing table error callback is already wired to `QMessageBox.critical(...)` in `MainWindow`, so invalid table input now triggers the popup window.
+
+Verification: `pytest` passed, `59 passed in 63.90s`.
+___
+___
+
+
+
+
+

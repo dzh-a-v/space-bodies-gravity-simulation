@@ -7,6 +7,7 @@ from typing import Callable
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from gravity_sim.core.body import Body
+from gravity_sim.core.vector import vector3
 from gravity_sim.core.validation import ValidationError, validate_bodies
 
 
@@ -149,11 +150,17 @@ class BodyTableModel(QAbstractTableModel):
         elif column == 2:
             body.radius = number
         elif 3 <= column <= 5:
-            body.position[column - 3] = number
+            position = body.position.copy()
+            position[column - 3] = number
+            body.position = vector3(position)
         elif 6 <= column <= 8:
-            body.velocity[column - 6] = number
+            velocity = body.velocity.copy()
+            velocity[column - 6] = number
+            body.velocity = vector3(velocity)
         elif 9 <= column <= 11:
-            body.acceleration[column - 9] = number
+            acceleration = body.acceleration.copy()
+            acceleration[column - 9] = number
+            body.acceleration = vector3(acceleration)
         else:
             raise ValueError(f"Unknown column {column}.")
 

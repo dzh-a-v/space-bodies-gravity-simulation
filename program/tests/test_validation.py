@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.validation import ValidationError, validate_bodies, validate_fragment_count
@@ -20,6 +21,14 @@ def test_mass_range_is_enforced():
 def test_radius_range_is_enforced():
     with pytest.raises(ValidationError):
         validate_bodies([body(radius=10)])
+
+
+def test_vectors_must_be_finite():
+    invalid = body()
+    invalid.velocity[1] = np.nan
+
+    with pytest.raises(ValidationError, match="velocity values must be finite"):
+        validate_bodies([invalid])
 
 
 def test_names_must_be_unique():

@@ -6,6 +6,8 @@ import math
 import re
 from collections.abc import Iterable
 
+import numpy as np
+
 from .body import Body
 from .constants import (
     MAX_FRAGMENTS,
@@ -41,6 +43,11 @@ def _finite(value: float, field_name: str) -> None:
         raise ValidationError(f"{field_name} must be a finite number.")
 
 
+def _finite_vector(values, field_name: str) -> None:
+    if not np.all(np.isfinite(values)):
+        raise ValidationError(f"{field_name} values must be finite numbers.")
+
+
 def _reject_unsupported_complex_object(body: Body) -> None:
     normalized_name = re.sub(r"[^a-z0-9]+", "", body.name.casefold())
     if any(token in normalized_name for token in UNSUPPORTED_COMPLEX_OBJECT_TOKENS):
@@ -58,6 +65,9 @@ def validate_body(body: Body) -> None:
 
     _finite(body.mass, "mass")
     _finite(body.radius, "radius")
+    _finite_vector(body.position, "position")
+    _finite_vector(body.velocity, "velocity")
+    _finite_vector(body.acceleration, "acceleration")
 
     if not MIN_MASS <= body.mass <= MAX_MASS:
         raise ValidationError(f"Body '{body.name}' mass must be in [{MIN_MASS}, {MAX_MASS}].")
