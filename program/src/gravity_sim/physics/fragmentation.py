@@ -8,13 +8,16 @@ from gravity_sim.core.body import Body
 from gravity_sim.core.colors import WHITE
 from gravity_sim.core.constants import MIN_FRAGMENTABLE_MASS, MIN_FRAGMENTS, MIN_RADIUS
 from gravity_sim.core.validation import validate_fragment_count
-from gravity_sim.core.vector import norm, vector3
+from gravity_sim.core.vector import Vector3, norm, vector3
 
 # Golden-angle increment for the Fibonacci sphere/ball lattice.
 _GOLDEN_ANGLE = pi * (3.0 - sqrt(5.0))
 
 ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
 ATTRACTOR_IMPULSE_SECONDS = 1.0
+COLLISION_SPREAD_SPEED_FRACTION = 0.25
+COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION = 0.15
+COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
 
 
 def can_fragment(body: Body) -> bool:
@@ -181,6 +184,53 @@ def apply_attractor_impulse(
         impulse = direction * impulse_speed * strength
         fragment.velocity = fragment.velocity + impulse
         fragment.acceleration = fragment.acceleration + impulse / ATTRACTOR_IMPULSE_SECONDS
+
+
+def apply_collision_spread_impulse(
+    parent: Body,
+    impact_partner: Body,
+    fragments: list[Body],
+) -> None:
+    """Push side fragments away from the collision line."""
+
+    impact_axis = impact_partner.position - parent.position
+    impact_axis_length = norm(impact_axis)
+    if impact_axis_length == 0.0:
+        return
+    impact_axis = impact_axis / impact_axis_length
+
+    spread_speed = (
+        norm(parent.velocity - impact_partner.velocity)
+        * COLLISION_SPREAD_SPEED_FRACTION
+    )
+    if spread_speed <= 0.0:
+        return
+
+    lateral_vectors: list[tuple[Body, Vector3, float]] = []
+    for fragment in fragments:
+        offset = fragment.position - parent.position
+        projection = float((offset * impact_axis).sum())
+        lateral = offset - projection * impact_axis
+        lateral_distance = norm(lateral)
+        lateral_vectors.append((fragment, lateral, lateral_distance))
+
+    max_lateral_distance = max((distance for _, _, distance in lateral_vectors), default=0.0)
+    deadzone_radius = parent.radius * COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION
+    active_span = max_lateral_distance - deadzone_radius
+    if active_span <= 0.0:
+        return
+
+    for fragment, lateral, lateral_distance in lateral_vectors:
+        if lateral_distance <= deadzone_radius:
+            continue
+
+        strength = (lateral_distance - deadzone_radius) / active_span
+        direction = lateral / lateral_distance
+        impulse = direction * spread_speed * strength
+        fragment.velocity = fragment.velocity + impulse
+        fragment.acceleration = (
+            fragment.acceleration + impulse / COLLISION_SPREAD_IMPULSE_SECONDS
+        )
 
 
 def merge_bodies(left: Body, right: Body, used_names: set[str] | None = None) -> Body:

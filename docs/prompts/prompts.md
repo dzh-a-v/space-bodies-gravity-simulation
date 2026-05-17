@@ -4743,3 +4743,66 @@ ___
 ___
 Implement plan
 ___
+Реализовал ослабленную self-gravity для осколков одного родителя.
+
+Что изменилось:
+- В [body.py](c:/spbpu/year2/digal/program/src/gravity_sim/core/body.py:21) добавлено runtime-поле `fragment_origin`, и `copy()` его сохраняет.
+- В [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:119) новые осколки получают origin родителя; в merge origin сохраняется только если он одинаковый у обоих тел.
+- В [gravity.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/gravity.py:13) добавлен коэффициент `FRAGMENT_SELF_GRAVITY_SCALE = 0.1`; он применяется только для пар `fragment-fragment` с одинаковым ненулевым `fragment_origin`.
+
+Склеивание не запрещал, collision logic и CSV-схему не менял.
+
+Проверка: `python -m pytest -q` → `32 passed`. Дополнительно проверил диагностикой, что same-origin fragment gravity стала ровно `0.1` от обычной.
+___
+___
+супер! ты большой молодец! идем дальше:
+
+сейчас столкновения обрабатываются плохо: объекты раскалываются на осколки, осколи просто летят друг в друга параллельно предыдущему вектору скорости.
+надо поменять это так:
+- при столкновении осколки объекта, который раскололся (это может быть как один из двух объектов, так и оба) должны разлетаться в разные стороны по следующей логике:
+- если вектор осколка направлен в точку столкновения (или близко к нему), т.е. этот осколок летит практически ровно в другой объект, ничего не менять
+- если же вектор движения этого осколка не направлен ровно в место столкновения, он должен получить импульс в сторону от столкновения (условно: две планеты идеально сталкиваются друг с другом на такой скорости, что они должны расколоться. центральные их осколки полетят прямо, как и задумано. а те осколки, которые образуются по бокам от линии столкновения, будут лететь немного в стороны, потому что объект раскололся и они, отделившись, разлетаются в другие стороны)
+___
+PLEASE IMPLEMENT THIS PLAN:
+# План: боковой разлёт осколков при collision-fragmentation
+
+## Summary
+- Добавить отдельный импульс разлёта только для столкновений, не для Roche.
+- Текущий `attractor impulse` оставить и складывать с новым боковым импульсом.
+- Центральные осколки около линии удара летят почти прямо; боковые получают импульс перпендикулярно линии столкновения, наружу от неё.
+
+## Key Changes
+- Ввести helper вроде `apply_collision_spread_impulse(parent, impact_partner, fragments)` рядом с текущей логикой фрагментации.
+- В `resolve_collisions`, после `create_fragments(...)`, применять:
+  - `apply_attractor_impulse(parent, attractor, fragments)`;
+  - `apply_collision_spread_impulse(parent, attractor, fragments)`.
+- Геометрия:
+  - `impact_axis = normalize(impact_partner.position - parent.position)`;
+  - для каждого фрагмента `offset = fragment.position - parent.position`;
+  - `lateral = offset - dot(offset, impact_axis) * impact_axis`;
+  - направление бокового импульса: `normalize(lateral)`, то есть наружу от линии удара.
+- Сила:
+  - константа `COLLISION_SPREAD_SPEED_FRACTION = 0.25`;
+  - максимальная скорость бокового импульса: `relative_speed(parent, impact_partner) * 0.25`;
+  - центральная мёртвая зона: `COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION = 0.15`;
+  - если `norm(lateral) <= parent.radius * 0.15`, боковой импульс не добавлять;
+  - иначе сила линейно растёт от `0` до `100%` между deadzone и самым боковым осколком этого parent.
+- Импульс добавлять в `fragment.velocity`; для видимости в таблице также добавлять `impulse / COLLISION_SPREAD_IMPULSE_SECONDS` в `fragment.acceleration`, как сделано у attractor impulse.
+- Не менять collision condition, merge rules, CSV-схему, Roche-логику и запрет re-fragment для фрагментов.
+
+## Tests
+- Collision head-on: центральные/почти центральные фрагменты не получают боковую компоненту.
+- Collision head-on: боковые фрагменты получают боковую скорость в направлении от линии удара.
+- Проверить линейный рост силы: чем больше `lateral_distance`, тем больше величина бокового импульса.
+- Проверить, что impulse применяется для каждого расколовшегося parent независимо, если фрагментируются оба тела.
+- Проверить, что Roche fragmentation не получает collision spread impulse.
+- Запустить полный `pytest`.
+
+## Assumptions
+- Новый боковой импульс добавляется к текущему attractor impulse, а не заменяет его.
+- Базовая сила бокового разлёта: `0.25 * relative_speed`.
+- Центральная зона без бокового импульса: `15%` радиуса родителя от линии столкновения.
+___
+___
+Implement plan
+___
