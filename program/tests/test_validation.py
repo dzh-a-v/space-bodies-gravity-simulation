@@ -27,6 +27,17 @@ def test_names_must_be_unique():
         validate_bodies([body("A"), body("A")])
 
 
+def test_complex_object_names_are_rejected():
+    with pytest.raises(ValidationError, match="not supported yet"):
+        validate_bodies([body("GasGiant")])
+
+    with pytest.raises(ValidationError, match="not supported yet"):
+        validate_bodies([body("Black Hole")])
+
+    with pytest.raises(ValidationError, match="not supported yet"):
+        validate_bodies([body("Star")])
+
+
 def test_fragment_count_range_is_enforced():
     assert validate_fragment_count(2) == 2
     with pytest.raises(ValidationError):

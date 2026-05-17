@@ -62,6 +62,22 @@ def test_csv_rejects_non_numeric_values(tmp_path):
         load_bodies_from_csv(path)
 
 
+def test_csv_rejects_unsupported_complex_objects(tmp_path):
+    path = tmp_path / "bad.csv"
+    path.write_text(
+        "\n".join(
+            [
+                "name,mass,radius,x,y,z,vx,vy,vz,ax,ay,az",
+                "GasGiant,1e20,1e6,0,0,0,0,0,0,0,0,0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CsvScenarioError, match="not supported yet"):
+        load_bodies_from_csv(path)
+
+
 def test_all_packaged_presets_load_and_match_schema():
     presets = list_presets()
 

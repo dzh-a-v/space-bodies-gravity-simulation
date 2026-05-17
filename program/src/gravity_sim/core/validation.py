@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterable
 
 from .body import Body
@@ -21,14 +22,39 @@ class ValidationError(ValueError):
     """Raised when scenario data violates the technical specification."""
 
 
+UNSUPPORTED_COMPLEX_OBJECT_TOKENS = frozenset(
+    {
+        "blackhole",
+        "gasgiant",
+        "jupiter",
+        "neptune",
+        "saturn",
+        "star",
+        "sun",
+        "uranus",
+    }
+)
+
+
 def _finite(value: float, field_name: str) -> None:
     if not math.isfinite(value):
         raise ValidationError(f"{field_name} must be a finite number.")
 
 
+def _reject_unsupported_complex_object(body: Body) -> None:
+    normalized_name = re.sub(r"[^a-z0-9]+", "", body.name.casefold())
+    if any(token in normalized_name for token in UNSUPPORTED_COMPLEX_OBJECT_TOKENS):
+        raise ValidationError(
+            f"Body '{body.name}' is not supported yet. "
+            "Only simple rocky bodies are currently supported."
+        )
+
+
 def validate_body(body: Body) -> None:
     if not body.name:
         raise ValidationError("Body name must not be empty.")
+
+    _reject_unsupported_complex_object(body)
 
     _finite(body.mass, "mass")
     _finite(body.radius, "radius")
