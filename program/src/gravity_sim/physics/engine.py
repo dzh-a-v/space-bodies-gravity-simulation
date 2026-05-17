@@ -5,8 +5,9 @@ from __future__ import annotations
 import random
 
 from gravity_sim.core.body import Body
-from gravity_sim.core.colors import initial_palette
+from gravity_sim.core.colors import WHITE, initial_palette
 from gravity_sim.core.system_state import SimulationSettings, SystemState
+from gravity_sim.core.textures import Texture, available_planet_textures
 from gravity_sim.core.validation import validate_bodies, validate_fragment_count
 
 from .collisions import resolve_collisions
@@ -25,11 +26,13 @@ class SimulationEngine:
         self.state = state or SystemState()
         self.solver = solver or DirectGravitySolver()
         self.rng = rng or random.Random()
+        self.texture_rng = random.Random()
         self._initial_state = self.state.copy()
 
     def set_bodies(self, bodies: list[Body]) -> None:
         self.state.bodies = validate_bodies(bodies)
         self._assign_initial_colors()
+        self._assign_missing_textures()
         self.state.time_seconds = 0.0
         self._initial_state = self.state.copy()
         self.recompute_accelerations()
@@ -65,7 +68,41 @@ class SimulationEngine:
 
     def _assign_initial_colors(self) -> None:
         for body, color in zip(self.state.bodies, initial_palette(len(self.state.bodies)), strict=True):
-            body.color = color
+            if body.color is None:
+                body.color = color
+
+    def _assign_missing_textures(self) -> None:
+        textures = available_planet_textures()
+        if not textures:
+            return
+
+        regular_bodies = [body for body in self.state.bodies if not body.is_fragment]
+        enforce_unique = len(regular_bodies) <= len(textures)
+        used: set[Texture] = set()
+        pending: list[Body] = []
+
+        for body in regular_bodies:
+            if body.color == WHITE:
+                body.texture = None
+                continue
+            if body.texture not in textures:
+                body.texture = None
+            if body.texture is None:
+                pending.append(body)
+                continue
+            if enforce_unique and body.texture in used:
+                body.texture = None
+                pending.append(body)
+                continue
+            used.add(body.texture)
+
+        available = [texture for texture in textures if texture not in used]
+        for body in pending:
+            if available:
+                index = self.texture_rng.randrange(len(available))
+                body.texture = available.pop(index)
+            else:
+                body.texture = self.texture_rng.choice(textures)
 
 
 def create_default_engine() -> SimulationEngine:

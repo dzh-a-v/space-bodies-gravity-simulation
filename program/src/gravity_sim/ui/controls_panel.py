@@ -27,6 +27,7 @@ class ControlsPanel(QWidget):
     save_csv_requested = Signal()
     preset_requested = Signal(str)
     settings_changed = Signal(float, float, int)
+    texture_rotation_toggled = Signal(bool)
 
     def __init__(self, presets: list[str]) -> None:
         super().__init__()
@@ -37,6 +38,9 @@ class ControlsPanel(QWidget):
         self.add_button = QPushButton("Add body")
         self.load_button = QPushButton("Load CSV")
         self.save_button = QPushButton("Save CSV")
+        self.texture_rotation_button = QPushButton("Rotation: On")
+        self.texture_rotation_button.setCheckable(True)
+        self.texture_rotation_button.setChecked(True)
         self.elapsed_time = QLabel("Elapsed: 0 s")
 
         self.time_step = QDoubleSpinBox()
@@ -75,6 +79,7 @@ class ControlsPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(run_row)
         layout.addLayout(file_row)
+        layout.addWidget(self.texture_rotation_button)
         layout.addLayout(form)
         layout.addStretch(1)
 
@@ -84,6 +89,7 @@ class ControlsPanel(QWidget):
         self.add_button.clicked.connect(self.add_body_requested)
         self.load_button.clicked.connect(self.load_csv_requested)
         self.save_button.clicked.connect(self.save_csv_requested)
+        self.texture_rotation_button.toggled.connect(self._emit_texture_rotation_toggled)
         self.preset_combo.activated.connect(self._emit_preset)
         self.time_step.valueChanged.connect(self._emit_settings)
         self.time_scale.valueChanged.connect(self._emit_settings)
@@ -107,6 +113,10 @@ class ControlsPanel(QWidget):
 
     def _emit_preset(self, _index: int | None = None) -> None:
         self.preset_requested.emit(self.preset_combo.currentText())
+
+    def _emit_texture_rotation_toggled(self, enabled: bool) -> None:
+        self.texture_rotation_button.setText("Rotation: On" if enabled else "Rotation: Off")
+        self.texture_rotation_toggled.emit(enabled)
 
     def _emit_settings(self) -> None:
         self.settings_changed.emit(
