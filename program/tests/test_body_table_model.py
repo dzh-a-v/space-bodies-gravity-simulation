@@ -1,13 +1,14 @@
 import numpy as np
 
-from PySide6.QtCore import QCoreApplication, Qt
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
 from gravity_sim.core.body import Body
 from gravity_sim.ui.body_table_model import BodyTableModel
 
 
 def _app():
-    return QCoreApplication.instance() or QCoreApplication([])
+    return QApplication.instance() or QApplication([])
 
 
 def body():

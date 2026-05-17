@@ -7,11 +7,14 @@ from dataclasses import dataclass, field
 from .body import Body
 from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS
 
+DEFAULT_TIME_STEP = 1.0
+DEFAULT_TIME_SCALE = 100.0
+
 
 @dataclass(slots=True)
 class SimulationSettings:
-    time_step: float = 60.0
-    time_scale: float = 1.0
+    time_step: float = DEFAULT_TIME_STEP
+    time_scale: float = DEFAULT_TIME_SCALE
     fragment_count: int = 8
     max_objects: int = FRAGMENT_OBJECT_LIMIT
     artificial_coefficients_enabled: bool = True

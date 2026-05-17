@@ -21,6 +21,7 @@ from gravity_sim.core.constants import (
     MAX_OBJECTS,
     MIN_FRAGMENTS,
 )
+from gravity_sim.core.system_state import DEFAULT_TIME_SCALE, DEFAULT_TIME_STEP
 
 
 class ControlsPanel(QWidget):
@@ -60,13 +61,13 @@ class ControlsPanel(QWidget):
         self.time_step = QDoubleSpinBox()
         self.time_step.setRange(0.001, 1.0e9)
         self.time_step.setDecimals(3)
-        self.time_step.setValue(60.0)
+        self.time_step.setValue(DEFAULT_TIME_STEP)
         self.time_step.setSuffix(" s")
 
         self.time_scale = QDoubleSpinBox()
-        self.time_scale.setRange(0.001, 1.0e6)
+        self.time_scale.setRange(0.001, 1000.0)
         self.time_scale.setDecimals(3)
-        self.time_scale.setValue(1.0)
+        self.time_scale.setValue(DEFAULT_TIME_SCALE)
 
         self.fragment_count = QSpinBox()
         self.fragment_count.setRange(MIN_FRAGMENTS, MAX_FRAGMENTS)

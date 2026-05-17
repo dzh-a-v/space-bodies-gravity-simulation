@@ -149,6 +149,44 @@ Changed:
 Verification: `pytest` passed, `64 passed in 0.58s`.
 ___
 ___
+- max time scale must be 1000
+ - default values for time scale is 100, for time step 1
+___
+Done.
+
+Updated:
+- [system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/system_state.py:13>): default `time_step = 1.0`, `time_scale = 100.0`
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:68>): max time scale is now `1000.0`
+- [test_system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_system_state.py:14>): added default-value coverage
+
+Verification: `pytest` passed, `65 passed in 0.46s`.
+___
+___
+File "C:\Users\Домашний\Desktop\viber\space-bodies-gravity-simulation\program\src\gravity_sim\ui\main_window.py", line 41, in __init__
+    self.controls = ControlsPanel(presets)
+                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Домашний\Desktop\viber\space-bodies-gravity-simulation\program\src\gravity_sim\ui\controls_panel.py", line 64, in __init__
+    self.time_step.setValue(SimulationSettings.time_step)
+TypeError: 'PySide6.QtWidgets.QDoubleSpinBox.setValue' called with wrong argument types:
+  PySide6.QtWidgets.QDoubleSpinBox.setValue(member_descriptor)
+Supported signatures:
+  PySide6.QtWidgets.QDoubleSpinBox.setValue(val: float, /)
+___
+Fixed the crash.
+
+Cause: because `SimulationSettings` uses `@dataclass(slots=True)`, `SimulationSettings.time_step` is a `member_descriptor`, not the numeric default. `QDoubleSpinBox.setValue(...)` needs an actual float.
+
+I added explicit constants:
+- `DEFAULT_TIME_STEP = 1.0`
+- `DEFAULT_TIME_SCALE = 100.0`
+
+Then the UI reads those constants directly in [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:64>).
+
+I also added a controls-panel test to catch this exact startup issue, and adjusted the table-model Qt test to use `QApplication` so widget tests can run in the same suite.
+
+Verification: `pytest` passed, `66 passed in 0.77s`.
+___
+___
 
 
 
