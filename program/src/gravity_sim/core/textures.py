@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-Texture = str
+from importlib import resources
 
-PLANET_TEXTURES: tuple[Texture, ...] = (
-    "planet_01.png",
-    "planet_02.png",
-    "planet_03.png",
-    "planet_04.png",
-    "planet_05.png",
-)
+Texture = str
+TEXTURE_PACKAGE = "gravity_sim.resources.textures"
+
+
+def available_planet_textures() -> tuple[Texture, ...]:
+    root = resources.files(TEXTURE_PACKAGE)
+    return tuple(sorted(item.name for item in root.iterdir() if item.name.endswith(".png")))

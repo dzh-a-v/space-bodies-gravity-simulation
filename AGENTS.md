@@ -15,7 +15,7 @@
   cd program
   pip install -e .[dev]   # one-time
   gravity-sim             # GUI
-  pytest                  # 38 tests, addopts=-q via pyproject.toml
+  pytest                  # 42 tests, addopts=-q via pyproject.toml
   ```
 - **Working dir convention:** the user's terminal is usually at `C:\spbpu\year2\digal\program`. Module imports always go through `gravity_sim.*` (the package root is `program/src/gravity_sim`).
 
@@ -41,7 +41,7 @@ digal/
     │   │   ├── body.py        @dataclass(slots=True) Body. Has copy().
     │   │   ├── vector.py      Vector3 = numpy float64 (3,). vector3() factory validates.
     │   │   ├── colors.py      RGB tuples. WHITE reserved for merge products.
-    │   │   ├── textures.py    Built-in planet texture ids.
+    │   │   ├── textures.py    Discovers built-in planet texture ids from packaged PNGs.
     │   │   ├── constants.py   ALL spec-mandated bounds live here. Edit with care.
     │   │   ├── system_state.py SimulationSettings + SystemState dataclasses.
     │   │   └── validation.py  validate_body / validate_bodies / validate_fragment_count.
@@ -66,7 +66,7 @@ digal/
     │       ├── body_table_model.py Editable QAbstractTableModel. See §7.
     │       ├── projection_view.py 2D pyqtgraph textured body renderer (XY/XZ/YZ).
     │       └── dialogs.py         BodyDialog (Add Body), show_error.
-    └── tests/                  pytest, 38 tests. See §8.
+    └── tests/                  pytest, 42 tests. See §8.
 ```
 
 The compiled `_cpp_backend.cp312-win_amd64.pyd` exists alongside `__init__.py` but is not currently wired into the import path. Ignore it unless the user asks about it.
@@ -83,7 +83,7 @@ Fields:
 - `position, velocity, acceleration: Vector3` (numpy `(3,)` float64) — **mutable in place**
 - `is_fragment: bool` — fragments cannot fragment again (see `can_fragment`)
 - `color: tuple[int,int,int] | None` — WHITE = merge product (reserved)
-- `texture: str | None` — built-in PNG texture id; assigned randomly by the engine's separate texture RNG when missing
+- `texture: str | None` — built-in PNG texture id; assigned by the engine's separate texture RNG when missing. Non-fragment bodies get unique textures while enough PNGs are available; fragments inherit parent texture.
 - `roche_exposure_seconds: dict[str, float]` — keyed by primary name; resets when satellite leaves that primary's Roche zone
 
 Always use `Body.copy()` when threading bodies through the engine; the dataclass holds numpy arrays and you'll get aliasing bugs otherwise. The pattern in `main_window._add_body` is canonical.
@@ -164,7 +164,7 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 
 ---
 
-## 8. Tests (`tests/*.py` — all 38 pass at HEAD)
+## 8. Tests (`tests/*.py` — all 42 pass at HEAD)
 
 | Test file | What it pins down |
 |---|---|
@@ -175,7 +175,7 @@ The Roche eccentric-Moon orbit was specifically tuned so perigee 1.25e7 m sits w
 | `test_fragmentation.py` | mass conservation, fragment-name prefix, `is_fragment` block, slot truncation |
 | `test_roche.py` | exposure accumulates over 24 h then fragments; resets when leaving zone |
 | `test_csv_io.py` | round-trip; missing columns / dup names / non-numeric all raise; presets all load |
-| `test_colors.py` | unique non-white initial palette; random built-in textures; fragments inherit parent color/texture; merge → WHITE with no texture |
+| `test_colors.py` | unique non-white initial palette; dynamic texture discovery; non-repeating random textures while possible; fragments inherit parent color/texture; merge → WHITE with no texture, preserved by engine |
 | `test_projection_view.py` | texture rotation angle: one full visual turn per simulated day; toggle off → 0° |
 
 `pytest` from `program/` Just Works (config in `pyproject.toml`). When you change physics, run all tests. When you change UI, tests don't cover Qt — verify by reasoning + targeted snippets via the engine API.
