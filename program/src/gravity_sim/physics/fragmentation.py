@@ -13,6 +13,7 @@ from gravity_sim.core.constants import (
     MIN_MASS,
     MIN_RADIUS,
 )
+from gravity_sim.core.textures import is_reserved_real_body_texture
 from gravity_sim.core.validation import validate_fragment_count
 from gravity_sim.core.vector import Vector3, norm, vector3
 
@@ -136,6 +137,7 @@ def create_fragments(
 
     fragments: list[Body] = []
     fragment_origin = parent.fragment_origin or parent.name
+    fragment_texture = None if is_reserved_real_body_texture(parent.texture) else parent.texture
     for index in range(actual_count):
         offset = offsets[index] * cloud_scale
         name = unique_name(f"{parent.name}_fragment_{index + 1}", used_names)
@@ -150,7 +152,7 @@ def create_fragments(
                 is_fragment=True,
                 fragment_origin=fragment_origin,
                 color=parent.color,
-                texture=parent.texture,
+                texture=fragment_texture,
             )
         )
 

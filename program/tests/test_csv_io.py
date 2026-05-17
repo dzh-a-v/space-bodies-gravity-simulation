@@ -88,3 +88,37 @@ def test_all_packaged_presets_load_and_match_schema():
 
     for preset in presets:
         load_preset(preset)
+
+
+def test_packaged_presets_assign_real_body_textures():
+    bodies = load_preset("inner_solar_system_like.csv")
+    by_name = {body.name: body for body in bodies}
+
+    assert by_name["Mercury"].real_body_id == "mercury"
+    assert by_name["Mercury"].texture == "mercury.png"
+    assert by_name["Venus"].real_body_id == "venus"
+    assert by_name["Venus"].texture == "venus.png"
+    assert by_name["Earth"].real_body_id == "earth"
+    assert by_name["Earth"].texture == "earth.png"
+    assert by_name["Mars"].real_body_id == "mars"
+    assert by_name["Mars"].texture == "mars.png"
+    assert by_name["CentralMass"].real_body_id is None
+    assert by_name["CentralMass"].texture is None
+
+
+def test_csv_loader_does_not_assign_real_body_identity_to_custom_files(tmp_path):
+    path = tmp_path / "scenario.csv"
+    path.write_text(
+        "\n".join(
+            [
+                "name,mass,radius,x,y,z,vx,vy,vz,ax,ay,az",
+                "Earth,1e20,1e6,0,0,0,0,0,0,0,0,0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_bodies_from_csv(path)
+
+    assert loaded[0].real_body_id is None
+    assert loaded[0].texture is None
