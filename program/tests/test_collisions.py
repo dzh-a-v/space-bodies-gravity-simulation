@@ -1,7 +1,9 @@
 import random
+from math import isclose
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.system_state import SimulationSettings
+from gravity_sim.core.vector import distance, norm
 from gravity_sim.physics.collisions import resolve_collisions
 
 
@@ -39,7 +41,7 @@ def test_equal_slow_collision_merges():
     assert result[0].mass == left.mass + right.mass
 
 
-def test_attractor_side_fragments_get_extra_attraction():
+def test_fragments_get_distance_weighted_extra_attraction():
     large = Body("Large", 1e17, 1e4, [0, 0, 0], [1e5, 0, 0])
     small = Body("Small", 2e16, 1e4, [2e4, 0, 0], [-1e5, 0, 0])
 
@@ -50,25 +52,33 @@ def test_attractor_side_fragments_get_extra_attraction():
     )
 
     small_fragments = [body for body in result if body.name.startswith("Small_fragment")]
-    attractor_side = [
-        fragment for fragment in small_fragments if fragment.position[0] < small.position[0]
-    ]
-    far_side = [
-        fragment for fragment in small_fragments if fragment.position[0] >= small.position[0]
-    ]
-    boosted = [
-        fragment for fragment in small_fragments if fragment.velocity[0] < small.velocity[0]
-    ]
-    unchanged = [
-        fragment for fragment in small_fragments if fragment.velocity[0] == small.velocity[0]
-    ]
+    fragment_distances = {
+        fragment.name: distance(fragment.position, large.position)
+        for fragment in small_fragments
+    }
+    nearest_distance = min(fragment_distances.values())
+    farthest_distance = max(fragment_distances.values())
+    distance_span = farthest_distance - nearest_distance
+    max_impulse_speed = norm(small.velocity - large.velocity) * 0.5
 
-    assert len(attractor_side) == len(boosted) == 4
-    assert len(far_side) == len(unchanged) == 4
-    assert {fragment.name for fragment in boosted} == {
-        fragment.name for fragment in attractor_side
-    }
-    assert {fragment.name for fragment in unchanged} == {
-        fragment.name for fragment in far_side
-    }
-    assert all(fragment.acceleration[0] < 0.0 for fragment in boosted)
+    for fragment in small_fragments:
+        expected_strength = (
+            farthest_distance - fragment_distances[fragment.name]
+        ) / distance_span
+        actual_impulse_speed = norm(fragment.velocity - small.velocity)
+
+        assert isclose(
+            actual_impulse_speed,
+            max_impulse_speed * expected_strength,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        )
+
+    nearest_fragment = min(small_fragments, key=lambda body: fragment_distances[body.name])
+    farthest_fragment = max(small_fragments, key=lambda body: fragment_distances[body.name])
+    assert isclose(
+        norm(nearest_fragment.velocity - small.velocity),
+        max_impulse_speed,
+        rel_tol=1e-12,
+    )
+    assert norm(farthest_fragment.velocity - small.velocity) == 0.0

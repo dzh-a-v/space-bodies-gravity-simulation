@@ -140,35 +140,43 @@ def apply_attractor_impulse(
     attractor: Body,
     fragments: list[Body],
 ) -> None:
-    """Kick fragments that spawned on the attractor-facing side."""
+    """Kick every fragment toward an attractor with distance-based strength."""
 
     if attractor.mass < parent.mass:
         return
-
-    parent_to_attractor = attractor.position - parent.position
-    parent_attractor_distance = norm(parent_to_attractor)
-    if parent_attractor_distance == 0.0:
-        return
-    attractor_direction = parent_to_attractor / parent_attractor_distance
 
     relative_speed = norm(parent.velocity - attractor.velocity)
     impulse_speed = relative_speed * ATTRACTOR_IMPULSE_SPEED_FRACTION
     if impulse_speed <= 0.0:
         return
 
+    fragment_distances: list[tuple[Body, float]] = []
     for fragment in fragments:
-        parent_to_fragment = fragment.position - parent.position
-        side_projection = float((parent_to_fragment * attractor_direction).sum())
-        if side_projection <= 0.0:
-            continue
-
         fragment_to_attractor = attractor.position - fragment.position
         fragment_attractor_distance = norm(fragment_to_attractor)
         if fragment_attractor_distance == 0.0:
             continue
+        fragment_distances.append((fragment, fragment_attractor_distance))
+
+    if not fragment_distances:
+        return
+
+    nearest_distance = min(distance for _, distance in fragment_distances)
+    farthest_distance = max(distance for _, distance in fragment_distances)
+    distance_span = farthest_distance - nearest_distance
+
+    for fragment, fragment_attractor_distance in fragment_distances:
+        fragment_to_attractor = attractor.position - fragment.position
+        strength = (
+            1.0
+            if distance_span == 0.0
+            else (farthest_distance - fragment_attractor_distance) / distance_span
+        )
+        if strength <= 0.0:
+            continue
 
         direction = fragment_to_attractor / fragment_attractor_distance
-        impulse = direction * impulse_speed
+        impulse = direction * impulse_speed * strength
         fragment.velocity = fragment.velocity + impulse
         fragment.acceleration = fragment.acceleration + impulse / ATTRACTOR_IMPULSE_SECONDS
 

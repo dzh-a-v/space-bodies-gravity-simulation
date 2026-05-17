@@ -1,6 +1,9 @@
+from math import isclose
+
 from gravity_sim.core.body import Body
 from gravity_sim.core.constants import ROCHE_REQUIRED_SECONDS
 from gravity_sim.core.system_state import SimulationSettings
+from gravity_sim.core.vector import distance, norm
 from gravity_sim.physics.roche import apply_roche_limit, roche_limit
 
 
@@ -40,7 +43,7 @@ def test_roche_exposure_resets_outside_limit():
     assert bodies[1].roche_exposure_seconds == {}
 
 
-def test_roche_fragmentation_applies_primary_impulse_to_attractor_side():
+def test_roche_fragmentation_applies_distance_weighted_primary_impulse():
     primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
     satellite = Body("Satellite", 2e15, 1e4, [2e6, 0, 0], [0, 1000, 0])
     assert 2e6 <= roche_limit(primary, satellite)
@@ -52,20 +55,33 @@ def test_roche_fragmentation_applies_primary_impulse_to_attractor_side():
     )
 
     fragments = [body for body in bodies if body.name.startswith("Satellite_fragment")]
-    attractor_side = [
-        fragment for fragment in fragments if fragment.position[0] < satellite.position[0]
-    ]
-    far_side = [
-        fragment for fragment in fragments if fragment.position[0] >= satellite.position[0]
-    ]
-    boosted = [fragment for fragment in fragments if fragment.velocity[0] < 0.0]
-    unchanged = [fragment for fragment in fragments if fragment.velocity[0] == 0.0]
+    fragment_distances = {
+        fragment.name: distance(fragment.position, primary.position)
+        for fragment in fragments
+    }
+    nearest_distance = min(fragment_distances.values())
+    farthest_distance = max(fragment_distances.values())
+    distance_span = farthest_distance - nearest_distance
+    max_impulse_speed = norm(satellite.velocity - primary.velocity) * 0.5
 
-    assert len(attractor_side) == len(boosted) == 4
-    assert len(far_side) == len(unchanged) == 4
-    assert {fragment.name for fragment in boosted} == {
-        fragment.name for fragment in attractor_side
-    }
-    assert {fragment.name for fragment in unchanged} == {
-        fragment.name for fragment in far_side
-    }
+    for fragment in fragments:
+        expected_strength = (
+            farthest_distance - fragment_distances[fragment.name]
+        ) / distance_span
+        actual_impulse_speed = norm(fragment.velocity - satellite.velocity)
+
+        assert isclose(
+            actual_impulse_speed,
+            max_impulse_speed * expected_strength,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        )
+
+    nearest_fragment = min(fragments, key=lambda body: fragment_distances[body.name])
+    farthest_fragment = max(fragments, key=lambda body: fragment_distances[body.name])
+    assert isclose(
+        norm(nearest_fragment.velocity - satellite.velocity),
+        max_impulse_speed,
+        rel_tol=1e-12,
+    )
+    assert norm(farthest_fragment.velocity - satellite.velocity) == 0.0
