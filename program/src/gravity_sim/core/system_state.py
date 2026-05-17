@@ -7,14 +7,18 @@ from dataclasses import dataclass, field
 from .body import Body
 from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS, MIN_FRAGMENTS, MIN_ROCHE_FRAGMENTS
 
+DEFAULT_TIME_STEP = 1.0
+DEFAULT_TIME_SCALE = 100.0
+
 
 @dataclass(slots=True)
 class SimulationSettings:
-    time_step: float = 60.0
-    time_scale: float = 1.0
+    time_step: float = DEFAULT_TIME_STEP
+    time_scale: float = DEFAULT_TIME_SCALE
     fragment_count: int = 8
     roche_fragment_count: int = 8
     max_objects: int = FRAGMENT_OBJECT_LIMIT
+    artificial_coefficients_enabled: bool = True
 
     def effective_step(self) -> float:
         return self.time_step * self.time_scale
@@ -36,6 +40,9 @@ class SystemState:
                 fragment_count=self.settings.fragment_count,
                 roche_fragment_count=self.settings.roche_fragment_count,
                 max_objects=self.settings.max_objects,
+                artificial_coefficients_enabled=(
+                    self.settings.artificial_coefficients_enabled
+                ),
             ),
         )
 

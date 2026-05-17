@@ -61,6 +61,34 @@ def test_same_origin_fragment_gravity_is_scaled_down():
     )
 
 
+def test_same_origin_fragment_gravity_is_unscaled_when_artificial_coefficients_are_off():
+    left = Body(
+        "A",
+        1e20,
+        1e6,
+        [0, 0, 0],
+        [0, 0, 0],
+        is_fragment=True,
+        fragment_origin="Parent",
+    )
+    right = Body(
+        "B",
+        2e20,
+        1e6,
+        [1e7, 0, 0],
+        [0, 0, 0],
+        is_fragment=True,
+        fragment_origin="Parent",
+    )
+
+    accelerations = DirectGravitySolver(
+        artificial_coefficients_enabled=False
+    ).compute_accelerations([left, right])
+
+    assert np.isclose(accelerations[0][0], GRAVITATIONAL_CONSTANT * right.mass / 1e14)
+    assert np.isclose(accelerations[1][0], -GRAVITATIONAL_CONSTANT * left.mass / 1e14)
+
+
 def test_different_origin_fragment_gravity_is_not_scaled():
     left = Body(
         "A",

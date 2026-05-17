@@ -22,6 +22,7 @@ from gravity_sim.core.constants import (
     MIN_FRAGMENTS,
     MIN_ROCHE_FRAGMENTS,
 )
+from gravity_sim.core.system_state import DEFAULT_TIME_SCALE, DEFAULT_TIME_STEP
 
 
 class ControlsPanel(QWidget):
@@ -35,6 +36,8 @@ class ControlsPanel(QWidget):
     settings_changed = Signal(float, float, int, int, int)
     settings_error = Signal(str)
     texture_rotation_toggled = Signal(bool)
+    artificial_coefficients_toggled = Signal(bool)
+    body_names_toggled = Signal(bool)
 
     def __init__(self, presets: list[str]) -> None:
         super().__init__()
@@ -48,18 +51,24 @@ class ControlsPanel(QWidget):
         self.texture_rotation_button = QPushButton("Rotation: On")
         self.texture_rotation_button.setCheckable(True)
         self.texture_rotation_button.setChecked(True)
+        self.artificial_coefficients_button = QPushButton("Artificial coefficients: On")
+        self.artificial_coefficients_button.setCheckable(True)
+        self.artificial_coefficients_button.setChecked(True)
+        self.body_names_button = QPushButton("Names: On")
+        self.body_names_button.setCheckable(True)
+        self.body_names_button.setChecked(True)
         self.elapsed_time = QLabel("Elapsed: 0 s")
 
         self.time_step = QDoubleSpinBox()
         self.time_step.setRange(0.001, 1.0e9)
         self.time_step.setDecimals(3)
-        self.time_step.setValue(60.0)
+        self.time_step.setValue(DEFAULT_TIME_STEP)
         self.time_step.setSuffix(" s")
 
         self.time_scale = QDoubleSpinBox()
-        self.time_scale.setRange(0.001, 1.0e6)
+        self.time_scale.setRange(0.001, 1000.0)
         self.time_scale.setDecimals(3)
-        self.time_scale.setValue(1.0)
+        self.time_scale.setValue(DEFAULT_TIME_SCALE)
 
         self.fragment_count = QSpinBox()
         self.fragment_count.setRange(MIN_FRAGMENTS, MAX_FRAGMENTS)
@@ -100,6 +109,8 @@ class ControlsPanel(QWidget):
         layout.addLayout(run_row)
         layout.addLayout(file_row)
         layout.addWidget(self.texture_rotation_button)
+        layout.addWidget(self.artificial_coefficients_button)
+        layout.addWidget(self.body_names_button)
         layout.addLayout(form)
         layout.addStretch(1)
 
@@ -110,6 +121,10 @@ class ControlsPanel(QWidget):
         self.load_button.clicked.connect(self.load_csv_requested)
         self.save_button.clicked.connect(self.save_csv_requested)
         self.texture_rotation_button.toggled.connect(self._emit_texture_rotation_toggled)
+        self.artificial_coefficients_button.toggled.connect(
+            self._emit_artificial_coefficients_toggled
+        )
+        self.body_names_button.toggled.connect(self._emit_body_names_toggled)
         self.preset_combo.activated.connect(self._emit_preset)
         self.time_step.valueChanged.connect(self._emit_settings)
         self.time_scale.valueChanged.connect(self._emit_settings)
@@ -139,6 +154,15 @@ class ControlsPanel(QWidget):
     def _emit_texture_rotation_toggled(self, enabled: bool) -> None:
         self.texture_rotation_button.setText("Rotation: On" if enabled else "Rotation: Off")
         self.texture_rotation_toggled.emit(enabled)
+
+    def _emit_artificial_coefficients_toggled(self, enabled: bool) -> None:
+        text = "Artificial coefficients: On" if enabled else "Artificial coefficients: Off"
+        self.artificial_coefficients_button.setText(text)
+        self.artificial_coefficients_toggled.emit(enabled)
+
+    def _emit_body_names_toggled(self, enabled: bool) -> None:
+        self.body_names_button.setText("Names: On" if enabled else "Names: Off")
+        self.body_names_toggled.emit(enabled)
 
     def _emit_settings(self) -> None:
         max_objects = self.max_objects.value()

@@ -90,3 +90,158 @@ python -m pytest
 ```
 ___
 ___
+- forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius. If user enters invalid numbers, a window must pop and inform him about that.
+  where to find:
+  - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
+  - program/src/gravity_sim/ui/body_table_model.py    _apply_edit(...) writes body.position, body.velocity, body.acceleration directly
+  - program/src/gravity_sim/core/validation.py    validate_body(...) currently checks finite only for mass and radius
+  ___
+Implemented.
+
+Changed:
+- [validation.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/validation.py:46>) now rejects non-finite `position`, `velocity`, and `acceleration` values.
+- [body_table_model.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/body_table_model.py:155>) now applies table vector edits through `vector3(...)`, so `nan`, `inf`, and `-inf` are rejected before commit.
+- Added regression tests for table edits and core validation in [test_body_table_model.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_body_table_model.py:17>) and [test_validation.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_validation.py:26>).
+
+The existing table error callback is already wired to `QMessageBox.critical(...)` in `MainWindow`, so invalid table input now triggers the popup window.
+
+Verification: `pytest` passed, `59 passed in 63.90s`.
+___
+___
+- add a button which enables / disables our coefficients for artificial changes of the bodies characteristics such as impulses upon collision etc.
+  I think it can be done just by changing the coefficients if the user turns that parameter on/off, like it just won't affect anything this way
+___
+Implemented the toggle.
+
+What changed:
+- Added `artificial_coefficients_enabled` to `SimulationSettings`.
+- Added a new UI button: `Artificial coefficients: On/Off`.
+- When disabled:
+  - collision fragment attraction impulses are skipped;
+  - collision spread impulses are skipped;
+  - Roche fragment attraction impulses are skipped;
+  - same-origin fragment gravity scaling becomes neutral (`1.0` instead of reduced).
+- The toggle is preserved across state copies/resets.
+
+Key files:
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:51>)
+- [main_window.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/main_window.py:120>)
+- [system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/system_state.py:17>)
+- [collisions.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/collisions.py:107>)
+- [roche.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/roche.py:84>)
+- [gravity.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/physics/gravity.py:24>)
+
+Verification: `pytest` passed, `63 passed in 0.47s`.
+___
+___
+- toggle displaying objects names in the simulation 2d projections above the objects
+___
+Implemented.
+
+Added a `Names: On/Off` toggle in the controls panel. When enabled, each 2D projection shows the body name above the projected object; when disabled, the labels are removed.
+
+Changed:
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:55>)
+- [main_window.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/main_window.py:127>)
+- [projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/projection_view.py:25>)
+- [test_projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_projection_view.py:16>)
+
+Verification: `pytest` passed, `64 passed in 0.58s`.
+___
+___
+- max time scale must be 1000
+ - default values for time scale is 100, for time step 1
+___
+Done.
+
+Updated:
+- [system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/system_state.py:13>): default `time_step = 1.0`, `time_scale = 100.0`
+- [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:68>): max time scale is now `1000.0`
+- [test_system_state.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_system_state.py:14>): added default-value coverage
+
+Verification: `pytest` passed, `65 passed in 0.46s`.
+___
+___
+File "C:\Users\Домашний\Desktop\viber\space-bodies-gravity-simulation\program\src\gravity_sim\ui\main_window.py", line 41, in __init__
+    self.controls = ControlsPanel(presets)
+                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Домашний\Desktop\viber\space-bodies-gravity-simulation\program\src\gravity_sim\ui\controls_panel.py", line 64, in __init__
+    self.time_step.setValue(SimulationSettings.time_step)
+TypeError: 'PySide6.QtWidgets.QDoubleSpinBox.setValue' called with wrong argument types:
+  PySide6.QtWidgets.QDoubleSpinBox.setValue(member_descriptor)
+Supported signatures:
+  PySide6.QtWidgets.QDoubleSpinBox.setValue(val: float, /)
+___
+Fixed the crash.
+
+Cause: because `SimulationSettings` uses `@dataclass(slots=True)`, `SimulationSettings.time_step` is a `member_descriptor`, not the numeric default. `QDoubleSpinBox.setValue(...)` needs an actual float.
+
+I added explicit constants:
+- `DEFAULT_TIME_STEP = 1.0`
+- `DEFAULT_TIME_SCALE = 100.0`
+
+Then the UI reads those constants directly in [controls_panel.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/controls_panel.py:64>).
+
+I also added a controls-panel test to catch this exact startup issue, and adjusted the table-model Qt test to use `QApplication` so widget tests can run in the same suite.
+
+Verification: `pytest` passed, `66 passed in 0.77s`.
+___
+___
+- textures overlapping (now the objects are completely visible even when they are partially / fully behind other object; only the part which is not behind any other object must be visible; if the object is partially behind other object, it must be properly partially visible then)
+___
+Fixed the projection overlap rendering.
+
+Changed [projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/projection_view.py:33>):
+- Bodies are now sorted back-to-front by the depth axis outside the current projection plane.
+- Foreground bodies are painted after background bodies, so they properly cover hidden parts.
+- Colored bodies are now fully opaque instead of semi-transparent.
+- Textured bodies now first paint an opaque clipped circle underneath the texture, so transparent texture pixels do not reveal objects behind them.
+
+Added tests in [test_projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_projection_view.py:28>) for projection depth axis and back-to-front sorting.
+
+Verification: `pytest` passed, `68 passed in 0.73s`.
+___
+___
+- add more real-life objects
+  - the user must be able to add not only custom objects, but also rocky objects from real life within our value ranges (Mercury, Venus, Earth, Mars)
+  - these preset planets must be able to be chosen when the user is adding a new object into the simulation
+- for real-life objects add their textures and always create those preset objects with their preset textures; their preset textures must only apply to them; the objects generated by the user / any not real-life objects mustn't have those textures
+___
+Implemented real-life rocky presets for adding bodies.
+
+What changed:
+- Added Mercury, Venus, Earth, and Mars presets with real mass/radius values in [real_bodies.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/real_bodies.py:19>).
+- Added a `preset` dropdown to the add-body dialog in [dialogs.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/dialogs.py:30>).
+- Preset bodies get fixed name/mass/radius and their assigned texture; custom bodies still use the normal custom fields.
+- Added `real_body_id` to [body.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/body.py:25>) so the engine can distinguish real presets from custom bodies.
+- Copied the provided textures into `program/src/gravity_sim/resources/textures/`: `earth.png`, `mars.png`, `mercury.png`, `venus.png`.
+
+Texture behavior:
+- Real preset textures are reserved in [textures.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/textures.py:9>).
+- Random/custom texture assignment excludes those reserved files.
+- If a custom/non-real object somehow has `earth.png` etc., the engine clears it and assigns only generic textures.
+- Fragments do not inherit reserved real-planet textures.
+
+Verification: `pytest` passed, `75 passed in 1.34s`.
+___
+___
+сейчас это работает через add body, но при загрузке пресетов симуляций это не работает . нужно, чтобы при загрузке пресетов симуляций, если в них есть эти объекты реального мира, им тоже присваивалась именно соответствующая этому объекту текстура
+___
+Сделано.
+
+Теперь при `load_preset(...)` тела из встроенных пресетов с именами `Mercury`, `Venus`, `Earth`, `Mars` получают:
+- правильный `real_body_id`;
+- соответствующую reserved-текстуру: `mercury.png`, `venus.png`, `earth.png`, `mars.png`.
+
+Важно: обычный пользовательский CSV через `load_bodies_from_csv(...)` по-прежнему не превращает объект с именем `Earth` в real-life preset. Это срабатывает именно для встроенных simulation presets, как ты и попросил.
+
+Изменено:
+- [real_bodies.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/core/real_bodies.py:27>) — lookup preset по имени.
+- [presets.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/io/presets.py:28>) — назначение `real_body_id` и texture при загрузке preset.
+- [test_csv_io.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_csv_io.py:93>) — тесты для preset-текстур и защиты обычных CSV.
+
+Проверка: `pytest` прошёл, `77 passed in 0.88s`.
+___
+___
+
+

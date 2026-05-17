@@ -22,6 +22,7 @@ class Body:
     fragment_origin: str | None = None
     color: Color | None = None
     texture: Texture | None = None
+    real_body_id: str | None = None
     roche_exposure_seconds: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -52,5 +53,6 @@ class Body:
             fragment_origin=self.fragment_origin,
             color=self.color,
             texture=self.texture,
+            real_body_id=self.real_body_id,
             roche_exposure_seconds=dict(self.roche_exposure_seconds),
         )

@@ -87,6 +87,9 @@ def test_roche_fragmentation_applies_distance_weighted_primary_impulse():
     assert norm(farthest_fragment.velocity - satellite.velocity) == 0.0
 
 
+def test_roche_fragments_keep_parent_velocity_when_artificial_coefficients_are_off():
+    primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
+    satellite = Body("Satellite", 8e15, 1e4, [2e6, 0, 0], [0, 1000, 0])
 def test_roche_uses_separate_fragment_count_setting():
     primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
     satellite = Body("Satellite", 6e15, 1e4, [2e6, 0, 0], [0, 0, 0])
@@ -94,11 +97,17 @@ def test_roche_uses_separate_fragment_count_setting():
 
     bodies = apply_roche_limit(
         [primary, satellite],
+        SimulationSettings(
+            fragment_count=8,
+            artificial_coefficients_enabled=False,
+        ),
         SimulationSettings(fragment_count=2, roche_fragment_count=6),
         ROCHE_REQUIRED_SECONDS,
     )
 
     fragments = [body for body in bodies if body.name.startswith("Satellite_fragment")]
+    assert fragments
+    assert all(norm(fragment.velocity - satellite.velocity) == 0.0 for fragment in fragments)
     assert len(fragments) == 6
 
 

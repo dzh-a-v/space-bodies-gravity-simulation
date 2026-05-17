@@ -22,6 +22,36 @@ def texture_rotation_degrees(time_seconds: float, enabled: bool) -> float:
     return (time_seconds % TEXTURE_ROTATION_PERIOD_SECONDS) / TEXTURE_ROTATION_PERIOD_SECONDS * 360.0
 
 
+def body_name_label_position(body: Body, axis_x: int, axis_y: int) -> tuple[float, float]:
+    return float(body.position[axis_x]), float(body.position[axis_y] + body.radius)
+
+
+def projection_depth_axis(axis_x: int, axis_y: int) -> int:
+    return next(axis for axis in range(3) if axis not in (axis_x, axis_y))
+
+
+def projected_body_spots(
+    bodies: list[Body],
+    axis_x: int,
+    axis_y: int,
+    rotation_degrees: float,
+) -> list[dict]:
+    depth_axis = projection_depth_axis(axis_x, axis_y)
+    spots = [
+        {
+            "x": float(body.position[axis_x]),
+            "y": float(body.position[axis_y]),
+            "depth": float(body.position[depth_axis]),
+            "radius": float(body.radius),
+            "texture": body.texture,
+            "rotation_degrees": rotation_degrees,
+            "color": body.color or (80, 170, 255),
+        }
+        for body in bodies
+    ]
+    return sorted(spots, key=lambda spot: spot["depth"])
+
+
 class BodyTextureItem(pg.GraphicsObject):
     def __init__(self) -> None:
         super().__init__()
@@ -37,17 +67,7 @@ class BodyTextureItem(pg.GraphicsObject):
         rotation_degrees: float,
     ) -> None:
         self.prepareGeometryChange()
-        self._spots = [
-            {
-                "x": float(body.position[axis_x]),
-                "y": float(body.position[axis_y]),
-                "radius": float(body.radius),
-                "texture": body.texture,
-                "rotation_degrees": rotation_degrees,
-                "color": body.color or (80, 170, 255),
-            }
-            for body in bodies
-        ]
+        self._spots = projected_body_spots(bodies, axis_x, axis_y, rotation_degrees)
         self._bounds = self._compute_bounds()
         self.update()
 
@@ -67,11 +87,15 @@ class BodyTextureItem(pg.GraphicsObject):
                 radius * 2.0,
             )
             pixmap = self._pixmap_for(spot["texture"])
+            red, green, blue = spot["color"]
             if pixmap is not None and not pixmap.isNull():
                 clip_path = QPainterPath()
                 clip_path.addEllipse(target)
                 painter.save()
                 painter.setClipPath(clip_path)
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor(red, green, blue, 255))
+                painter.drawEllipse(target)
                 painter.translate(target.center())
                 painter.rotate(spot["rotation_degrees"])
                 painter.translate(-target.center())
@@ -79,9 +103,8 @@ class BodyTextureItem(pg.GraphicsObject):
                 painter.restore()
                 continue
 
-            red, green, blue = spot["color"]
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(red, green, blue, 220))
+            painter.setBrush(QColor(red, green, blue, 255))
             painter.drawEllipse(target)
 
     def _compute_bounds(self) -> QRectF:
@@ -114,6 +137,9 @@ class ProjectionView(QWidget):
         super().__init__()
         self.plane = plane
         self._axis_x, self._axis_y = self.AXES[plane]
+        self._body_names_visible = True
+        self._bodies: list[Body] = []
+        self._name_labels: list[pg.TextItem] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -130,5 +156,37 @@ class ProjectionView(QWidget):
         self.plot.addItem(self.body_item)
         layout.addWidget(self.plot)
 
-    def set_bodies(self, bodies: list[Body], rotation_degrees: float = 0.0) -> None:
+    def set_bodies(
+        self,
+        bodies: list[Body],
+        rotation_degrees: float = 0.0,
+        show_names: bool | None = None,
+    ) -> None:
+        if show_names is not None:
+            self._body_names_visible = show_names
+        self._bodies = bodies
         self.body_item.set_bodies(bodies, self._axis_x, self._axis_y, rotation_degrees)
+        self._refresh_name_labels()
+
+    def set_body_names_visible(self, visible: bool) -> None:
+        self._body_names_visible = visible
+        self._refresh_name_labels()
+
+    def _refresh_name_labels(self) -> None:
+        for label in self._name_labels:
+            self.plot.removeItem(label)
+        self._name_labels.clear()
+
+        if not self._body_names_visible:
+            return
+
+        for body in self._bodies:
+            label = pg.TextItem(
+                text=body.name,
+                color=(235, 235, 235),
+                anchor=(0.5, 1.0),
+                fill=(0, 0, 0, 110),
+            )
+            label.setPos(*body_name_label_position(body, self._axis_x, self._axis_y))
+            self.plot.addItem(label)
+            self._name_labels.append(label)

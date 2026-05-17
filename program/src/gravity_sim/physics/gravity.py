@@ -21,6 +21,9 @@ class GravitySolver(Protocol):
 class DirectGravitySolver:
     """Exact pairwise O(n^2) Newtonian gravity solver."""
 
+    def __init__(self, artificial_coefficients_enabled: bool = True) -> None:
+        self.artificial_coefficients_enabled = artificial_coefficients_enabled
+
     def compute_accelerations(self, bodies: list[Body]) -> list[Vector3]:
         accelerations = [vector3() for _ in bodies]
 
@@ -33,7 +36,11 @@ class DirectGravitySolver:
                 if distance_squared == 0.0:
                     continue
 
-                interaction_scale = _interaction_scale(left, right)
+                interaction_scale = _interaction_scale(
+                    left,
+                    right,
+                    self.artificial_coefficients_enabled,
+                )
                 distance_cubed = distance_squared * float(np.sqrt(distance_squared))
                 accelerations[left_index] += (
                     interaction_scale
@@ -53,7 +60,13 @@ class DirectGravitySolver:
         return accelerations
 
 
-def _interaction_scale(left: Body, right: Body) -> float:
+def _interaction_scale(
+    left: Body,
+    right: Body,
+    artificial_coefficients_enabled: bool = True,
+) -> float:
+    if not artificial_coefficients_enabled:
+        return 1.0
     if (
         left.is_fragment
         and right.is_fragment

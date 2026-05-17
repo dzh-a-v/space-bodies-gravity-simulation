@@ -6,9 +6,14 @@ import random
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.colors import WHITE, initial_palette
+from gravity_sim.core.real_bodies import real_body_preset_for
 from gravity_sim.core.constants import MIN_ROCHE_FRAGMENTS
 from gravity_sim.core.system_state import SimulationSettings, SystemState
-from gravity_sim.core.textures import Texture, available_planet_textures
+from gravity_sim.core.textures import (
+    Texture,
+    available_planet_textures,
+    is_reserved_real_body_texture,
+)
 from gravity_sim.core.validation import validate_bodies, validate_fragment_count
 
 from .collisions import resolve_collisions
@@ -46,6 +51,7 @@ class SimulationEngine:
 
     def step(self, dt: float | None = None) -> SystemState:
         validate_fragment_count(self.state.settings.fragment_count)
+        self._sync_solver_settings()
         validate_fragment_count(
             self.state.settings.roche_fragment_count,
             minimum=MIN_ROCHE_FRAGMENTS,
@@ -67,9 +73,16 @@ class SimulationEngine:
         return self.state
 
     def recompute_accelerations(self) -> None:
+        self._sync_solver_settings()
         accelerations = self.solver.compute_accelerations(self.state.bodies)
         for body, acceleration in zip(self.state.bodies, accelerations, strict=True):
             body.acceleration = acceleration
+
+    def _sync_solver_settings(self) -> None:
+        if hasattr(self.solver, "artificial_coefficients_enabled"):
+            self.solver.artificial_coefficients_enabled = (
+                self.state.settings.artificial_coefficients_enabled
+            )
 
     def _assign_initial_colors(self) -> None:
         for body, color in zip(self.state.bodies, initial_palette(len(self.state.bodies)), strict=True):
@@ -78,18 +91,21 @@ class SimulationEngine:
 
     def _assign_missing_textures(self) -> None:
         textures = available_planet_textures()
-        if not textures:
-            return
-
         regular_bodies = [body for body in self.state.bodies if not body.is_fragment]
-        enforce_unique = len(regular_bodies) <= len(textures)
+        enforce_unique = bool(textures) and len(regular_bodies) <= len(textures)
         used: set[Texture] = set()
         pending: list[Body] = []
 
         for body in regular_bodies:
+            preset = real_body_preset_for(body.real_body_id)
+            if preset is not None:
+                body.texture = preset.texture
+                continue
             if body.color == WHITE:
                 body.texture = None
                 continue
+            if is_reserved_real_body_texture(body.texture):
+                body.texture = None
             if body.texture not in textures:
                 body.texture = None
             if body.texture is None:
@@ -100,6 +116,9 @@ class SimulationEngine:
                 pending.append(body)
                 continue
             used.add(body.texture)
+
+        if not textures:
+            return
 
         available = [texture for texture in textures if texture not in used]
         for body in pending:

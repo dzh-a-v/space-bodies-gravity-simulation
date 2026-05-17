@@ -104,8 +104,9 @@ def resolve_collisions(
                     available_slots=available_slots,
                     rng=rng,
                 )
-                apply_attractor_impulse(parent, attractor, fragments)
-                apply_collision_spread_impulse(parent, attractor, fragments, rng)
+                if settings.artificial_coefficients_enabled:
+                    apply_attractor_impulse(parent, attractor, fragments)
+                    apply_collision_spread_impulse(parent, attractor, fragments, rng)
                 produced.extend(fragments)
                 available_slots -= len(fragments)
 

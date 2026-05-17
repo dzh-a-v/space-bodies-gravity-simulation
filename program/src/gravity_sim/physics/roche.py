@@ -78,7 +78,10 @@ def apply_roche_limit(
             continue
 
         consumed.add(satellite_index)
-        if fragmenting_primary is not None:
+        if (
+            fragmenting_primary is not None
+            and settings.artificial_coefficients_enabled
+        ):
             apply_attractor_impulse(satellite, fragmenting_primary, fragments)
         additions.extend(fragments)
 
