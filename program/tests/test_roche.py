@@ -119,6 +119,23 @@ def test_roche_keeps_body_when_minimum_valid_fragment_mass_is_impossible():
     assert not bodies[1].is_fragment
 
 
+def test_roche_keeps_body_when_no_object_slots_are_available():
+    primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
+    satellite = Body("Satellite", 4e15, 1e4, [2e6, 0, 0], [0, 0, 0])
+    assert 2e6 <= roche_limit(primary, satellite)
+
+    bodies = apply_roche_limit(
+        [primary, satellite],
+        SimulationSettings(roche_fragment_count=4, max_objects=1),
+        ROCHE_REQUIRED_SECONDS,
+    )
+
+    assert len(bodies) == 2
+    assert bodies[0] is primary
+    assert bodies[1] is satellite
+    assert not bodies[1].is_fragment
+
+
 def test_roche_minimum_fragmentable_mass_creates_two_fragments():
     primary = Body("Primary", 1e22, 1e6, [0, 0, 0], [0, 0, 0])
     satellite = Body("Satellite", 2e15, 1e4, [2e6, 0, 0], [0, 0, 0])

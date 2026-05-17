@@ -5124,3 +5124,16 @@ ___
 Проверка: `python -m pytest -q` прошёл успешно.
 ___
 ___
+- fix Roche fragmentation when there are no available object slots left. If available_slots is 0 and no fragments can be created, the original body must not disappear from the simulation. The program must either create the allowed number of fragments or keep the body unchanged.
+  where to find:
+  - program/src/gravity_sim/physics/roche.py    consumed.add(satellite_index)
+  - program/src/gravity_sim/physics/roche.py    available_slots calculation
+  - program/src/gravity_sim/physics/roche.py    additions.extend(fragments) currently runs without checking that fragments were actually created
+___
+Проверил Roche-логику: защита уже была в коде после предыдущих правок. В `roche.py` тело добавляется в `consumed` только после успешного создания фрагментов, а если `create_fragments(...)` вернул пустой список, выполняется `continue`, и исходное тело остаётся в системе.
+
+Чтобы закрепить это поведение, добавил regression-тест в `program/tests/test_roche.py`: при `max_objects=1` доступных слотов для фрагментов нет, и спутник не исчезает.
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
