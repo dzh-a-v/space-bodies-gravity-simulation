@@ -26,6 +26,32 @@ def body_name_label_position(body: Body, axis_x: int, axis_y: int) -> tuple[floa
     return float(body.position[axis_x]), float(body.position[axis_y] + body.radius)
 
 
+def projection_depth_axis(axis_x: int, axis_y: int) -> int:
+    return next(axis for axis in range(3) if axis not in (axis_x, axis_y))
+
+
+def projected_body_spots(
+    bodies: list[Body],
+    axis_x: int,
+    axis_y: int,
+    rotation_degrees: float,
+) -> list[dict]:
+    depth_axis = projection_depth_axis(axis_x, axis_y)
+    spots = [
+        {
+            "x": float(body.position[axis_x]),
+            "y": float(body.position[axis_y]),
+            "depth": float(body.position[depth_axis]),
+            "radius": float(body.radius),
+            "texture": body.texture,
+            "rotation_degrees": rotation_degrees,
+            "color": body.color or (80, 170, 255),
+        }
+        for body in bodies
+    ]
+    return sorted(spots, key=lambda spot: spot["depth"])
+
+
 class BodyTextureItem(pg.GraphicsObject):
     def __init__(self) -> None:
         super().__init__()
@@ -41,17 +67,7 @@ class BodyTextureItem(pg.GraphicsObject):
         rotation_degrees: float,
     ) -> None:
         self.prepareGeometryChange()
-        self._spots = [
-            {
-                "x": float(body.position[axis_x]),
-                "y": float(body.position[axis_y]),
-                "radius": float(body.radius),
-                "texture": body.texture,
-                "rotation_degrees": rotation_degrees,
-                "color": body.color or (80, 170, 255),
-            }
-            for body in bodies
-        ]
+        self._spots = projected_body_spots(bodies, axis_x, axis_y, rotation_degrees)
         self._bounds = self._compute_bounds()
         self.update()
 
@@ -71,11 +87,15 @@ class BodyTextureItem(pg.GraphicsObject):
                 radius * 2.0,
             )
             pixmap = self._pixmap_for(spot["texture"])
+            red, green, blue = spot["color"]
             if pixmap is not None and not pixmap.isNull():
                 clip_path = QPainterPath()
                 clip_path.addEllipse(target)
                 painter.save()
                 painter.setClipPath(clip_path)
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor(red, green, blue, 255))
+                painter.drawEllipse(target)
                 painter.translate(target.center())
                 painter.rotate(spot["rotation_degrees"])
                 painter.translate(-target.center())
@@ -83,9 +103,8 @@ class BodyTextureItem(pg.GraphicsObject):
                 painter.restore()
                 continue
 
-            red, green, blue = spot["color"]
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(red, green, blue, 220))
+            painter.setBrush(QColor(red, green, blue, 255))
             painter.drawEllipse(target)
 
     def _compute_bounds(self) -> QRectF:

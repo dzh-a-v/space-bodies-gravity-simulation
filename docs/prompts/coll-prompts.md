@@ -187,6 +187,21 @@ I also added a controls-panel test to catch this exact startup issue, and adjust
 Verification: `pytest` passed, `66 passed in 0.77s`.
 ___
 ___
+- textures overlapping (now the objects are completely visible even when they are partially / fully behind other object; only the part which is not behind any other object must be visible; if the object is partially behind other object, it must be properly partially visible then)
+___
+Fixed the projection overlap rendering.
+
+Changed [projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/src/gravity_sim/ui/projection_view.py:33>):
+- Bodies are now sorted back-to-front by the depth axis outside the current projection plane.
+- Foreground bodies are painted after background bodies, so they properly cover hidden parts.
+- Colored bodies are now fully opaque instead of semi-transparent.
+- Textured bodies now first paint an opaque clipped circle underneath the texture, so transparent texture pixels do not reveal objects behind them.
+
+Added tests in [test_projection_view.py](</c:/Users/Домашний/Desktop/viber/space-bodies-gravity-simulation/program/tests/test_projection_view.py:28>) for projection depth axis and back-to-front sorting.
+
+Verification: `pytest` passed, `68 passed in 0.73s`.
+___
+___
 
 
 
