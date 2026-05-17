@@ -6,11 +6,6 @@
   - program/src/gravity_sim/physics/fragmentation.py	fragment_mass = parent.mass / actual_count
   - program/src/gravity_sim/physics/fragmentation.py	Body(..., mass=fragment_mass, ...)
 
-- forbid creating objects which are not just rocky bodies. tell the user it's not supported yet.
-  where to find:
-  - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет имя, массу и радиус, но не тип объекта
-  - program/src/gravity_sim/resources/presets/roche_jupiter_grazer.csv	строка GasGiant,1.0e26,2.0e7,...
-
 - forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius.
   where to find:
   - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
@@ -36,6 +31,9 @@
 # check
 
 # feat
+- add more real-life objects
+  - the user must be able to add not only custom objects, but also rocky objects from real life within our value ranges (Mercury, Venus, Earth, Mars)
+- toggle displaying objects names
 
 ## later
 - lock view at one object
