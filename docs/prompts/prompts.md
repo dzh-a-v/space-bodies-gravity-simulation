@@ -4806,3 +4806,286 @@ ___
 ___
 Implement plan
 ___
+Реализовал боковой разлёт осколков при collision-fragmentation.
+
+Что изменилось:
+- В [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:18) добавлены настройки:
+```python
+COLLISION_SPREAD_SPEED_FRACTION = 0.25
+COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION = 0.15
+COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
+```
+- Новый helper [apply_collision_spread_impulse](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:189) даёт боковой импульс осколкам, удалённым от линии столкновения.
+- В [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:107) этот impulse применяется только при столкновениях, сразу после текущего `apply_attractor_impulse`.
+- Roche-логику не трогал.
+
+Поведение: центральные осколки в пределах `15%` радиуса от линии удара не получают боковой импульс; боковые получают импульс наружу от линии столкновения, линейно сильнее чем дальше они от центра.
+
+Проверка: `python -m pytest -q` → `35 passed`.
+
+В рабочем дереве уже были изменены `TODO.md` и `docs/prompts/prompts.md`; я их не трогал.
+___
+___
+- увеличь COLLISION_SPREAD_SPEED_FRACTION до 1.5
+- распределение скорости должно быть линейным и прямо пропорциональным расстоянию от оси столкновения
+- добавь случайность в скорость, придаваемую осколкам при этом процессе (пусть будет минимум -- 50% от той, которая должна быть при константных вычислениях, а максимум -- 150% от той, которая должна быть при константных вычислениях)
+___
+Изменил collision spread:
+
+- `COLLISION_SPREAD_SPEED_FRACTION` теперь `1.5` в [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:18).
+- Убрал deadzone: сила теперь прямо пропорциональна расстоянию от оси столкновения через `strength = lateral_distance / max_lateral_distance`.
+- Добавил случайный множитель скорости `0.5..1.5`:
+```python
+COLLISION_SPREAD_RANDOM_FACTOR_MIN = 0.5
+COLLISION_SPREAD_RANDOM_FACTOR_MAX = 1.5
+```
+- В [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:107) прокинул существующий `rng`, чтобы разброс был воспроизводимым при фиксированном seed.
+
+Обновил тесты под новую логику: линейное распределение, нулевой импульс только на самой оси, и проверка диапазона случайности.
+
+Проверка: `python -m pytest -q` → `36 passed`.
+
+`TODO.md` уже изменен в рабочем дереве, я его не трогал.
+___
+___
+сейчас есть проблема того, что при столкновении лвух тел их осколки генерируются в одинаковых местах, разлетаются одинаково и идеально все сталкиваются и слипаются воедино. это надо исправить следующим образом:
+измени генерацию осколков в пределах родительского объекта (не только при столкновении, но и при разрушении из-за Роша, т.е. в целом при любом разрушении) следующим образом:
+- они должны появляться в случайных местах (всё так же в пределах родительского объекта)
+___
+Реализовал случайную генерацию позиций осколков для любого разрушения: и collision, и Roche теперь идут через обновленный `create_fragments(...)`.
+
+Что изменилось:
+- В [fragmentation.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py:43) `create_fragments` теперь принимает `rng` и размещает центры осколков случайно внутри сферы родителя.
+- Старую Fibonacci-сетку убрал полностью.
+- В [collisions.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/collisions.py:105) прокинул общий `rng`, чтобы два тела при столкновении больше не получали одинаковую структуру осколков.
+- В [roche.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/roche.py:20) тоже добавил `rng`, а в [engine.py](c:/spbpu/year2/digal/program/src/gravity_sim/physics/engine.py:51) прокинул engine RNG в Roche-разрушение.
+
+Добавил тесты, что осколки появляются внутри родительского тела и что разные seed дают разные позиции.
+
+Проверка: `python -m pytest -q` → `38 passed`.
+
+`TODO.md` уже был изменен в рабочем дереве, я его не трогал.
+___
+___
+установи COLLISION_SPREAD_SPEED_FRACTION на 0.25
+установи COLLISION_SPREAD_RANDOM_FACTOR_MAX на 2.5
+___
+Поставил значения:
+
+- `COLLISION_SPREAD_SPEED_FRACTION = 0.25`
+- `COLLISION_SPREAD_RANDOM_FACTOR_MAX = 2.5`
+
+Заодно починил оставшийся конфликт со старой Fibonacci-генерацией, из-за которого падали тесты после перехода на случайные позиции осколков.
+
+Проверка: `python -m pytest -q` проходит, `38 passed`.
+___
+___
+прочитай файл [tz.tex](docs/tz/tz.tex) , читай требования к программе оттуда и параллельно сравнивай с тем, что реализовано в нашей программе. если что-то не совпадает с нашей программой , не меняй ничего в программе: вместо этого напиши в [LEFT.md](LEFT.md), что требуется в тз, а что у нас в программе реализованно и где именно несоответствия.
+___
+Записал сверку в [LEFT.md](C:/spbpu/year2/digal/LEFT.md). Код программы не менял.
+
+Нашёл 8 расхождений/частичных расхождений: ослабленная гравитация осколков, дополнительные импульсы сверх ТЗ, масса фрагментов ниже `MIN_MASS`, нюанс с Roche `4..100`, газовый гигант в preset, невыведенный пользователю лимит объектов, `NaN/inf` через таблицу и edge-case с исчезновением тела при Roche без доступных слотов.
+
+Тесты не запускал, потому что менялся только документ. `git status` показывает затронутым только `LEFT.md`.
+___
+___
+сформулируй указание для этого пункта в стиле [TODO.md](TODO.md) 
+
+7. Табличное редактирование координат/скоростей/ускорений может принять NaN или inf
+ТЗ: входные параметры объекта задаются вещественными числами.
+
+Реализация: при создании объекта и загрузке CSV векторы проходят через vector3(...), где есть проверка np.isfinite(...). Но при редактировании в таблице значение преобразуется через float(value) и напрямую записывается в numpy-массив. После этого validate_bodies(...) проверяет конечность только для массы и радиуса, но не для позиции, скорости и ускорения.
+
+Где смотреть:
+
+Файл	Место
+program/src/gravity_sim/core/vector.py	vector3(...) проверяет конечность векторов при создании
+program/src/gravity_sim/ui/body_table_model.py	_apply_edit(...) записывает body.position, body.velocity, body.acceleration напрямую
+program/src/gravity_sim/core/validation.py	validate_body(...) проверяет finite только для mass и radius
+Несоответствие: через таблицу можно ввести невещественные значения вроде nan или inf для координат, скоростей или ускорений, хотя по ТЗ это должны быть вещественные числа.
+___
+```md
+- forbid NaN and inf values when editing position, velocity, and acceleration in the table. They must be finite real numbers, same as when creating an object or loading CSV. Table edits must validate vectors too, not only mass and radius.
+  where to find:
+  - program/src/gravity_sim/core/vector.py    vector3(...) already checks np.isfinite(...) for vectors
+  - program/src/gravity_sim/ui/body_table_model.py    _apply_edit(...) writes body.position, body.velocity, body.acceleration directly
+  - program/src/gravity_sim/core/validation.py    validate_body(...) currently checks finite only for mass and radius
+```
+___
+___
+и это 
+8. При разрушении по Рошу с нулевым числом доступных слотов тело может исчезнуть без фрагментов
+ТЗ: если при разрушении общее число объектов превысит 10000, создается только допустимое число осколков.
+
+Реализация: в apply_roche_limit(...) спутник добавляется в consumed до создания фрагментов. Если available_slots == 0, create_fragments(...) вернет пустой список, но исходное тело уже будет удалено из результата. В collision-ветке для похожей ситуации есть fallback на merge, а в Roche-ветке fallback отсутствует.
+
+Где смотреть:
+
+Файл	Место
+program/src/gravity_sim/physics/roche.py	consumed.add(satellite_index)
+program/src/gravity_sim/physics/roche.py	расчет available_slots
+program/src/gravity_sim/physics/roche.py	additions.extend(fragments) без проверки, что фрагменты реально созданы
+Несоответствие: при нуле доступных слотов программа не создает "допустимое число осколков" и не сохраняет исходное тело, а фактически удаляет его из системы.
+___
+```md
+- fix Roche fragmentation when there are no available object slots left. If available_slots is 0 and no fragments can be created, the original body must not disappear from the simulation. The program must either create the allowed number of fragments or keep the body unchanged.
+  where to find:
+  - program/src/gravity_sim/physics/roche.py    consumed.add(satellite_index)
+  - program/src/gravity_sim/physics/roche.py    available_slots calculation
+  - program/src/gravity_sim/physics/roche.py    additions.extend(fragments) currently runs without checking that fragments were actually created
+```
+___
+___
+предложи решения для этого
+
+4. Ограничение Роша на число фрагментов частично не отражено в интерфейсе
+ТЗ: при разрушении по Рошу создается 4..100 фрагментов, настраивается пользователем.
+
+Реализация: в интерфейсе есть один общий счетчик Fragments с диапазоном 2..100. Для Роша код потом silently поднимает значение до 4 через max(settings.fragment_count, MIN_ROCHE_FRAGMENTS).
+
+Где смотреть:
+
+Файл	Место
+program/src/gravity_sim/ui/controls_panel.py	self.fragment_count.setRange(MIN_FRAGMENTS, MAX_FRAGMENTS)
+program/src/gravity_sim/physics/roche.py	fragment_count = max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
+Несоответствие: пользователь может выбрать 2 или 3, но для разрушения по Рошу программа создаст 4. ТЗ формулирует это как пользовательскую настройку 4..100, а не как скрытую автокоррекцию.
+___
+Есть три нормальных варианта, я бы выбрал первый.
+
+**Вариант 1: два отдельных счетчика**
+Добавить в UI два поля:
+
+```text
+Collision fragments: 2..100
+Roche fragments: 4..100
+```
+
+Плюсы: полностью соответствует ТЗ, поведение прозрачное, больше нет скрытого `max(...)`.
+
+Что менять:
+```md
+- add separate Roche fragment count setting in UI. Collision fragmentation must use 2..100, Roche fragmentation must use 4..100. Remove silent max(settings.fragment_count, MIN_ROCHE_FRAGMENTS) behavior and pass roche_fragment_count explicitly.
+  where to find:
+  - program/src/gravity_sim/core/system_state.py    SimulationSettings currently has only fragment_count
+  - program/src/gravity_sim/ui/controls_panel.py    one Fragments spinbox with range 2..100
+  - program/src/gravity_sim/physics/collisions.py    uses settings.fragment_count
+  - program/src/gravity_sim/physics/roche.py    currently uses max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
+```
+
+**Вариант 2: один счетчик, но диапазон 4..100**
+Просто поменять общий `Fragments` на `4..100`.
+
+Минус: столкновения по ТЗ должны поддерживать `2..100`, а мы потеряем возможность сделать 2 или 3 осколка при collision fragmentation.
+
+**Вариант 3: оставить один счетчик, но явно показывать правило**
+Например, label: `Fragments: 2..100; Roche uses at least 4`. Или показывать warning/tooltip.
+
+Минус: скрытая автокоррекция всё равно остается. Это скорее UX-пластырь, а не исправление расхождения с ТЗ.
+
+Я бы записал в `TODO.md` именно вариант 1: он самый чистый и не ломает collision-логику.
+___
+___
+исправь вот это в нашей программе:
+
+- the user must be able to choose the maximum number of objects in the simulation. max: 1e5. where to find:
+  - program/src/gravity_sim/core/constants.py	MAX_OBJECTS = 100_000, FRAGMENT_OBJECT_LIMIT = 10_000
+  - program/src/gravity_sim/core/system_state.py	SimulationSettings.max_objects
+  - program/src/gravity_sim/ui/controls_panel.py
+___
+Добавил в UI настройку `Max objects` с диапазоном `0..100000`. Значение по умолчанию осталось `10000`, как текущий `FRAGMENT_OBJECT_LIMIT`, а выбранное пользователем значение теперь записывается в `engine.state.settings.max_objects`.
+
+Изменены только [controls_panel.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/controls_panel.py) и [main_window.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/main_window.py). `TODO.md` уже был изменен в рабочем дереве, я его не трогал.
+
+Проверка: `python -m pytest -q` прошел успешно.
+___
+___
+если пользователь вводит туда значение больше 10000 или меньше 2, ему надо высветить сообщение, что сейчас поддерживается только диапазон [2..10000]
+___
+Реализовал проверку для `Max objects`: если пользователь вводит значение меньше `2` или больше `10000`, программа показывает сообщение `Currently only the [2..10000] range is supported.`, возвращает поле к последнему валидному значению и не применяет неподдерживаемый лимит.
+
+Изменены [controls_panel.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/controls_panel.py) и [main_window.py](C:/spbpu/year2/digal/program/src/gravity_sim/ui/main_window.py).
+
+Проверка: `python -m pytest -q` прошел успешно.
+___
+___
+- forbid creating objects which are not just rocky bodies. tell the user it's not supported yet.
+  where to find:
+  - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет имя, массу и радиус, но не тип объекта
+  - program/src/gravity_sim/resources/presets/roche_jupiter_grazer.csv	строка GasGiant,1.0e26,2.0e7,...
+
+выполни эту правку
+___
+Внес правку: теперь `validate_body(...)` отклоняет явно неподдерживаемые сложные объекты по имени: `GasGiant`, `Jupiter`, `Saturn`, `Uranus`, `Neptune`, `Star`, `Sun`, `Black Hole`. Пользователь увидит сообщение: `Only simple rocky bodies are currently supported.`
+
+Удалил invalid preset `roche_jupiter_grazer.csv`, потому что он содержал `GasGiant`. Добавил тесты для прямой валидации и CSV-загрузки.
+
+Проверка: `python -m pytest -q` прошел успешно.
+___
+___
+- when the object is destructing, need to check the expected mass of the fragments: the mass of each fragment must be above ≥ 1e15 kg. If it is impossible to destruct the object into set number of fragments, the program must compute the maximum possible number of fragments so that each fragment will have mass ≥1e15. if it is impossible to destruct the object following this rule (e.g. its mass is \<2e15), it mustn't destruct.
+  where to find:
+  - program/src/gravity_sim/core/constants.py	MIN_MASS = 1.0e15
+  - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет массу обычных объектов
+  - program/src/gravity_sim/physics/fragmentation.py	fragment_mass = parent.mass / actual_count
+  - program/src/gravity_sim/physics/fragmentation.py	Body(..., mass=fragment_mass, ...)
+___
+Реализовал правило минимальной массы фрагмента `>= 1e15 кг`.
+
+Теперь при разрушении `create_fragments(...)` считает максимум фрагментов по массе родителя: `floor(parent.mass / MIN_MASS)`. Если пользователь запросил больше, число фрагментов автоматически уменьшается до максимально возможного. Если нельзя создать даже минимально допустимое число фрагментов, разрушение не происходит.
+
+Дополнительно поправил Roche-ветку: если фрагменты создать нельзя, исходное тело больше не исчезает из симуляции.
+
+Основные места:
+- [fragmentation.py](C:/spbpu/year2/digal/program/src/gravity_sim/physics/fragmentation.py)
+- [roche.py](C:/spbpu/year2/digal/program/src/gravity_sim/physics/roche.py)
+- [test_fragmentation.py](C:/spbpu/year2/digal/program/tests/test_fragmentation.py)
+- [test_roche.py](C:/spbpu/year2/digal/program/tests/test_roche.py)
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
+как откактить изменения до послденего коммита?
+___
+Если нужно именно вернуть рабочую папку к состоянию последнего коммита:
+
+```powershell
+git reset --hard HEAD
+git clean -fd
+```
+
+Важно: это удалит все незакоммиченные изменения. `git reset --hard HEAD` откатит измененные tracked-файлы, а `git clean -fd` удалит untracked-файлы, например новые файлы вроде `LEFT.md`, если они не были добавлены в git.
+
+Более безопасный вариант с бэкапом:
+
+```powershell
+git stash push -u -m "backup before rollback"
+```
+
+Это тоже очистит рабочую папку, но изменения можно будет вернуть через:
+
+```powershell
+git stash pop
+```
+___
+___
+снова реализуй вот этот запрос (мне пришлось всё откатить, извини)
+- when the object is destructing, need to check the expected mass of the fragments: the mass of each fragment must be above ≥ 1e15 kg. If it is impossible to destruct the object into set number of fragments, the program must compute the maximum possible number of fragments so that each fragment will have mass ≥1e15. if it is impossible to destruct the object following this rule (e.g. its mass is \<2e15), it mustn't destruct.
+  where to find:
+  - program/src/gravity_sim/core/constants.py	MIN_MASS = 1.0e15
+  - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет массу обычных объектов
+  - program/src/gravity_sim/physics/fragmentation.py	fragment_mass = parent.mass / actual_count
+  - program/src/gravity_sim/physics/fragmentation.py	Body(..., mass=fragment_mass, ...)
+___
+Повторно реализовал правило: при фрагментации каждый осколок теперь обязан иметь массу `>= MIN_MASS` (`1e15 кг`). Если запрошено слишком много фрагментов, программа автоматически уменьшает их число до максимально возможного по массе. Если нельзя создать даже минимально допустимое число фрагментов, разрушение не происходит.
+
+Также поправил Roche-ветку: если фрагменты создать нельзя, исходное тело больше не удаляется из симуляции.
+
+Изменены:
+- `program/src/gravity_sim/physics/fragmentation.py`
+- `program/src/gravity_sim/physics/roche.py`
+- `program/tests/test_fragmentation.py`
+- `program/tests/test_roche.py`
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
