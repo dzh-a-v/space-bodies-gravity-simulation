@@ -6,11 +6,6 @@
   - program/src/gravity_sim/physics/fragmentation.py	fragment_mass = parent.mass / actual_count
   - program/src/gravity_sim/physics/fragmentation.py	Body(..., mass=fragment_mass, ...)
 
-- the user must be able to choose the maximum number of objects in the simulation. max: 1e5. where to find:
-  - program/src/gravity_sim/core/constants.py	MAX_OBJECTS = 100_000, FRAGMENT_OBJECT_LIMIT = 10_000
-  - program/src/gravity_sim/core/system_state.py	SimulationSettings.max_objects
-  - program/src/gravity_sim/ui/controls_panel.py
-
 - forbid creating objects which are not just rocky bodies. tell the user it's not supported yet.
   where to find:
   - program/src/gravity_sim/core/validation.py	validate_body(...) проверяет имя, массу и радиус, но не тип объекта

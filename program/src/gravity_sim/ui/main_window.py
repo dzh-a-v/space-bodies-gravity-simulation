@@ -89,16 +89,26 @@ class MainWindow(QMainWindow):
         self.controls.save_csv_requested.connect(self._save_csv)
         self.controls.preset_requested.connect(self._load_preset)
         self.controls.settings_changed.connect(self._apply_settings)
+        self.controls.settings_error.connect(
+            lambda message: show_error(self, "Settings error", message)
+        )
         self.controls.texture_rotation_toggled.connect(self._set_texture_rotation_enabled)
 
         if presets:
             self._load_preset(presets[0])
         self._refresh()
 
-    def _apply_settings(self, time_step: float, time_scale: float, fragment_count: int) -> None:
+    def _apply_settings(
+        self,
+        time_step: float,
+        time_scale: float,
+        fragment_count: int,
+        max_objects: int,
+    ) -> None:
         self.engine.state.settings.time_step = time_step
         self.engine.state.settings.time_scale = time_scale
         self.engine.state.settings.fragment_count = fragment_count
+        self.engine.state.settings.max_objects = max_objects
 
     def _set_texture_rotation_enabled(self, enabled: bool) -> None:
         self.texture_rotation_enabled = enabled

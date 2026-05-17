@@ -15,7 +15,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gravity_sim.core.constants import MAX_FRAGMENTS, MIN_FRAGMENTS
+from gravity_sim.core.constants import (
+    FRAGMENT_OBJECT_LIMIT,
+    MAX_FRAGMENTS,
+    MAX_OBJECTS,
+    MIN_FRAGMENTS,
+)
 
 
 class ControlsPanel(QWidget):
@@ -26,7 +31,8 @@ class ControlsPanel(QWidget):
     load_csv_requested = Signal()
     save_csv_requested = Signal()
     preset_requested = Signal(str)
-    settings_changed = Signal(float, float, int)
+    settings_changed = Signal(float, float, int, int)
+    settings_error = Signal(str)
     texture_rotation_toggled = Signal(bool)
 
     def __init__(self, presets: list[str]) -> None:
@@ -58,6 +64,13 @@ class ControlsPanel(QWidget):
         self.fragment_count.setRange(MIN_FRAGMENTS, MAX_FRAGMENTS)
         self.fragment_count.setValue(8)
 
+        self.max_objects = QSpinBox()
+        self.max_objects.setRange(0, MAX_OBJECTS)
+        self.max_objects.setSingleStep(1000)
+        self.max_objects.setValue(FRAGMENT_OBJECT_LIMIT)
+        self.max_objects.setKeyboardTracking(False)
+        self._last_valid_max_objects = FRAGMENT_OBJECT_LIMIT
+
         self.preset_combo = QComboBox()
         self.preset_combo.addItems(presets)
 
@@ -74,6 +87,7 @@ class ControlsPanel(QWidget):
         form.addRow("Time step", self.time_step)
         form.addRow("Time scale", self.time_scale)
         form.addRow("Fragments", self.fragment_count)
+        form.addRow("Max objects", self.max_objects)
         form.addRow("Preset", self.preset_combo)
 
         layout = QVBoxLayout(self)
@@ -94,6 +108,7 @@ class ControlsPanel(QWidget):
         self.time_step.valueChanged.connect(self._emit_settings)
         self.time_scale.valueChanged.connect(self._emit_settings)
         self.fragment_count.valueChanged.connect(self._emit_settings)
+        self.max_objects.valueChanged.connect(self._emit_settings)
 
     def set_running(self, running: bool) -> None:
         self.add_button.setEnabled(not running)
@@ -119,8 +134,20 @@ class ControlsPanel(QWidget):
         self.texture_rotation_toggled.emit(enabled)
 
     def _emit_settings(self) -> None:
+        max_objects = self.max_objects.value()
+        if not 2 <= max_objects <= FRAGMENT_OBJECT_LIMIT:
+            self.max_objects.blockSignals(True)
+            self.max_objects.setValue(self._last_valid_max_objects)
+            self.max_objects.blockSignals(False)
+            self.settings_error.emit(
+                f"Currently only the [2..{FRAGMENT_OBJECT_LIMIT}] range is supported."
+            )
+            return
+
+        self._last_valid_max_objects = max_objects
         self.settings_changed.emit(
             self.time_step.value(),
             self.time_scale.value(),
             self.fragment_count.value(),
+            max_objects,
         )
