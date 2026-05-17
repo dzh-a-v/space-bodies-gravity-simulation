@@ -102,9 +102,10 @@ def resolve_collisions(
                     settings.fragment_count,
                     used_names,
                     available_slots=available_slots,
+                    rng=rng,
                 )
                 apply_attractor_impulse(parent, attractor, fragments)
-                apply_collision_spread_impulse(parent, attractor, fragments)
+                apply_collision_spread_impulse(parent, attractor, fragments, rng)
                 produced.extend(fragments)
                 available_slots -= len(fragments)
 

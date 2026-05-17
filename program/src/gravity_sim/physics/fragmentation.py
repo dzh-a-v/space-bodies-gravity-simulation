@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from math import cos, pi, sin, sqrt
 
 from gravity_sim.core.body import Body
@@ -10,13 +11,11 @@ from gravity_sim.core.constants import MIN_FRAGMENTABLE_MASS, MIN_FRAGMENTS, MIN
 from gravity_sim.core.validation import validate_fragment_count
 from gravity_sim.core.vector import Vector3, norm, vector3
 
-# Golden-angle increment for the Fibonacci sphere/ball lattice.
-_GOLDEN_ANGLE = pi * (3.0 - sqrt(5.0))
-
 ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
 ATTRACTOR_IMPULSE_SECONDS = 1.0
-COLLISION_SPREAD_SPEED_FRACTION = 0.25
-COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION = 0.15
+COLLISION_SPREAD_SPEED_FRACTION = 1.5
+COLLISION_SPREAD_RANDOM_FACTOR_MIN = 0.5
+COLLISION_SPREAD_RANDOM_FACTOR_MAX = 1.5
 COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
 
 
@@ -44,6 +43,7 @@ def create_fragments(
     used_names: set[str],
     available_slots: int | None = None,
     minimum: int = MIN_FRAGMENTS,
+    rng: random.Random | None = None,
 ) -> list[Body]:
     """Create spherical fragments that conserve total mass."""
 
@@ -57,6 +57,7 @@ def create_fragments(
     if actual_count <= 0:
         return []
 
+    rng = rng or random.Random()
     fragment_mass = parent.mass / actual_count
 
     # Place fragment centres on a 3D Fibonacci ball-lattice. Each centre's
@@ -190,9 +191,11 @@ def apply_collision_spread_impulse(
     parent: Body,
     impact_partner: Body,
     fragments: list[Body],
+    rng: random.Random | None = None,
 ) -> None:
     """Push side fragments away from the collision line."""
 
+    rng = rng or random.Random()
     impact_axis = impact_partner.position - parent.position
     impact_axis_length = norm(impact_axis)
     if impact_axis_length == 0.0:
@@ -215,18 +218,20 @@ def apply_collision_spread_impulse(
         lateral_vectors.append((fragment, lateral, lateral_distance))
 
     max_lateral_distance = max((distance for _, _, distance in lateral_vectors), default=0.0)
-    deadzone_radius = parent.radius * COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION
-    active_span = max_lateral_distance - deadzone_radius
-    if active_span <= 0.0:
+    if max_lateral_distance <= 0.0:
         return
 
     for fragment, lateral, lateral_distance in lateral_vectors:
-        if lateral_distance <= deadzone_radius:
+        if lateral_distance <= 0.0:
             continue
 
-        strength = (lateral_distance - deadzone_radius) / active_span
+        strength = lateral_distance / max_lateral_distance
+        random_factor = rng.uniform(
+            COLLISION_SPREAD_RANDOM_FACTOR_MIN,
+            COLLISION_SPREAD_RANDOM_FACTOR_MAX,
+        )
         direction = lateral / lateral_distance
-        impulse = direction * spread_speed * strength
+        impulse = direction * spread_speed * strength * random_factor
         fragment.velocity = fragment.velocity + impulse
         fragment.acceleration = (
             fragment.acceleration + impulse / COLLISION_SPREAD_IMPULSE_SECONDS

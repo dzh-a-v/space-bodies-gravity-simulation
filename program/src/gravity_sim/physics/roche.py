@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+
 from gravity_sim.core.body import Body
 from gravity_sim.core.constants import MIN_ROCHE_FRAGMENTS, ROCHE_REQUIRED_SECONDS
 from gravity_sim.core.system_state import SimulationSettings
@@ -18,10 +20,12 @@ def apply_roche_limit(
     bodies: list[Body],
     settings: SimulationSettings,
     dt: float,
+    rng: random.Random | None = None,
 ) -> list[Body]:
     if dt <= 0 or not bodies:
         return bodies
 
+    rng = rng or random.Random()
     consumed: set[int] = set()
     additions: list[Body] = []
 
@@ -66,6 +70,7 @@ def apply_roche_limit(
             used_names,
             available_slots=available_slots,
             minimum=MIN_ROCHE_FRAGMENTS,
+            rng=rng,
         )
         if fragmenting_primary is not None:
             apply_attractor_impulse(satellite, fragmenting_primary, fragments)

@@ -6,10 +6,19 @@ from gravity_sim.core.system_state import SimulationSettings
 from gravity_sim.core.vector import distance, norm
 from gravity_sim.physics.collisions import resolve_collisions
 from gravity_sim.physics.fragmentation import (
-    COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION,
+    COLLISION_SPREAD_RANDOM_FACTOR_MAX,
+    COLLISION_SPREAD_RANDOM_FACTOR_MIN,
     COLLISION_SPREAD_SPEED_FRACTION,
     apply_collision_spread_impulse,
 )
+
+
+class FixedRandom:
+    def __init__(self, value: float) -> None:
+        self.value = value
+
+    def uniform(self, _minimum: float, _maximum: float) -> float:
+        return self.value
 
 
 def test_small_mass_ratio_collision_merges():
@@ -94,17 +103,22 @@ def test_fragments_get_distance_weighted_extra_attraction():
     assert farthest_fragment.velocity[0] - small.velocity[0] == 0.0
 
 
-def test_collision_spread_impulse_leaves_central_fragments_unchanged():
+def test_collision_spread_impulse_leaves_axis_fragment_unchanged():
     parent = Body("Parent", 1e16, 1e3, [0, 0, 0], [100, 0, 0])
     partner = Body("Partner", 1e16, 1e3, [1e4, 0, 0], [-100, 0, 0])
     central = Body("Central", 1e15, 1e3, [0, 0, 0], parent.velocity.copy())
     near_central = Body("Near", 1e15, 1e3, [0, 100, 0], parent.velocity.copy())
     side = Body("Side", 1e15, 1e3, [0, 1e3, 0], parent.velocity.copy())
 
-    apply_collision_spread_impulse(parent, partner, [central, near_central, side])
+    apply_collision_spread_impulse(
+        parent,
+        partner,
+        [central, near_central, side],
+        FixedRandom(1.0),
+    )
 
     assert norm(central.velocity - parent.velocity) == 0.0
-    assert norm(near_central.velocity - parent.velocity) == 0.0
+    assert near_central.velocity[1] > parent.velocity[1]
     assert side.velocity[1] > parent.velocity[1]
     assert side.velocity[0] == parent.velocity[0]
 
@@ -115,18 +129,30 @@ def test_collision_spread_impulse_strength_grows_linearly_with_lateral_distance(
     middle = Body("Middle", 1e15, 1e3, [0, 500, 0], parent.velocity.copy())
     side = Body("Side", 1e15, 1e3, [0, 1e3, 0], parent.velocity.copy())
 
-    apply_collision_spread_impulse(parent, partner, [middle, side])
+    apply_collision_spread_impulse(parent, partner, [middle, side], FixedRandom(1.0))
 
     max_spread_speed = norm(parent.velocity - partner.velocity) * COLLISION_SPREAD_SPEED_FRACTION
-    deadzone_radius = parent.radius * COLLISION_SPREAD_DEADZONE_RADIUS_FRACTION
-    expected_middle_strength = (500.0 - deadzone_radius) / (1000.0 - deadzone_radius)
 
     assert isclose(
         norm(middle.velocity - parent.velocity),
-        max_spread_speed * expected_middle_strength,
+        max_spread_speed * 0.5,
         rel_tol=1e-12,
     )
     assert isclose(norm(side.velocity - parent.velocity), max_spread_speed, rel_tol=1e-12)
+
+
+def test_collision_spread_impulse_randomizes_speed_within_bounds():
+    parent = Body("Parent", 1e16, 1e3, [0, 0, 0], [100, 0, 0])
+    partner = Body("Partner", 1e16, 1e3, [1e4, 0, 0], [-100, 0, 0])
+    side = Body("Side", 1e15, 1e3, [0, 1e3, 0], parent.velocity.copy())
+
+    apply_collision_spread_impulse(parent, partner, [side], random.Random(0))
+
+    base_spread_speed = norm(parent.velocity - partner.velocity) * COLLISION_SPREAD_SPEED_FRACTION
+    actual_spread_speed = norm(side.velocity - parent.velocity)
+
+    assert actual_spread_speed >= base_spread_speed * COLLISION_SPREAD_RANDOM_FACTOR_MIN
+    assert actual_spread_speed <= base_spread_speed * COLLISION_SPREAD_RANDOM_FACTOR_MAX
 
 
 def test_collision_spread_impulse_applies_per_parent_axis():
@@ -135,8 +161,8 @@ def test_collision_spread_impulse_applies_per_parent_axis():
     left_fragment = Body("LeftFragment", 1e15, 1e3, [0, 1e3, 0], left.velocity.copy())
     right_fragment = Body("RightFragment", 1e15, 1e3, [1e4, 1e3, 0], right.velocity.copy())
 
-    apply_collision_spread_impulse(left, right, [left_fragment])
-    apply_collision_spread_impulse(right, left, [right_fragment])
+    apply_collision_spread_impulse(left, right, [left_fragment], FixedRandom(1.0))
+    apply_collision_spread_impulse(right, left, [right_fragment], FixedRandom(1.0))
 
     assert left_fragment.velocity[1] > left.velocity[1]
     assert right_fragment.velocity[1] > right.velocity[1]

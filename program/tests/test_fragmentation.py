@@ -1,6 +1,9 @@
+import random
+
 import numpy as np
 
 from gravity_sim.core.body import Body
+from gravity_sim.core.vector import distance
 from gravity_sim.physics.fragmentation import create_fragments, merge_bodies
 
 
@@ -29,6 +32,27 @@ def test_available_slots_truncate_fragment_count():
 
     assert len(fragments) == 3
     assert np.isclose(sum(fragment.mass for fragment in fragments), parent.mass)
+
+
+def test_fragments_spawn_at_random_positions_inside_parent():
+    parent = Body("Parent", 9e15, 9e3, [10, 20, 30], [0, 0, 0])
+
+    fragments = create_fragments(parent, 8, set(), rng=random.Random(0))
+
+    assert all(distance(fragment.position, parent.position) <= parent.radius for fragment in fragments)
+    assert len({tuple(fragment.position) for fragment in fragments}) == len(fragments)
+
+
+def test_fragment_positions_depend_on_rng_seed():
+    parent = Body("Parent", 9e15, 9e3, [0, 0, 0], [0, 0, 0])
+
+    first = create_fragments(parent, 8, set(), rng=random.Random(0))
+    second = create_fragments(parent, 8, set(), rng=random.Random(1))
+
+    assert any(
+        not np.allclose(left.position, right.position)
+        for left, right in zip(first, second, strict=True)
+    )
 
 
 def test_fragment_copy_preserves_origin():

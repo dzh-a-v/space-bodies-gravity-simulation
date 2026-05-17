@@ -48,7 +48,12 @@ class SimulationEngine:
 
         velocity_verlet_step(self.state.bodies, dt, self.solver)
         self.state.bodies = resolve_collisions(self.state.bodies, self.state.settings, self.rng)
-        self.state.bodies = apply_roche_limit(self.state.bodies, self.state.settings, dt)
+        self.state.bodies = apply_roche_limit(
+            self.state.bodies,
+            self.state.settings,
+            dt,
+            self.rng,
+        )
         self.recompute_accelerations()
         self.state.time_seconds += dt
         return self.state
