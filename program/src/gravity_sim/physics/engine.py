@@ -6,6 +6,7 @@ import random
 
 from gravity_sim.core.body import Body
 from gravity_sim.core.colors import WHITE, initial_palette
+from gravity_sim.core.constants import MIN_ROCHE_FRAGMENTS
 from gravity_sim.core.system_state import SimulationSettings, SystemState
 from gravity_sim.core.textures import Texture, available_planet_textures
 from gravity_sim.core.validation import validate_bodies, validate_fragment_count
@@ -45,6 +46,10 @@ class SimulationEngine:
 
     def step(self, dt: float | None = None) -> SystemState:
         validate_fragment_count(self.state.settings.fragment_count)
+        validate_fragment_count(
+            self.state.settings.roche_fragment_count,
+            minimum=MIN_ROCHE_FRAGMENTS,
+        )
         dt = self.state.settings.effective_step() if dt is None else dt
         if dt <= 0:
             return self.state

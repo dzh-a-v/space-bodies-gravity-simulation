@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .body import Body
-from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS
+from .constants import FRAGMENT_OBJECT_LIMIT, MAX_FRAGMENTS, MIN_FRAGMENTS, MIN_ROCHE_FRAGMENTS
 
 
 @dataclass(slots=True)
@@ -13,6 +13,7 @@ class SimulationSettings:
     time_step: float = 60.0
     time_scale: float = 1.0
     fragment_count: int = 8
+    roche_fragment_count: int = 8
     max_objects: int = FRAGMENT_OBJECT_LIMIT
 
     def effective_step(self) -> float:
@@ -33,6 +34,7 @@ class SystemState:
                 time_step=self.settings.time_step,
                 time_scale=self.settings.time_scale,
                 fragment_count=self.settings.fragment_count,
+                roche_fragment_count=self.settings.roche_fragment_count,
                 max_objects=self.settings.max_objects,
             ),
         )
@@ -42,4 +44,11 @@ class SystemState:
         return {body.name for body in self.bodies}
 
     def clamp_fragment_count(self) -> None:
-        self.settings.fragment_count = max(2, min(MAX_FRAGMENTS, self.settings.fragment_count))
+        self.settings.fragment_count = max(
+            MIN_FRAGMENTS,
+            min(MAX_FRAGMENTS, self.settings.fragment_count),
+        )
+        self.settings.roche_fragment_count = max(
+            MIN_ROCHE_FRAGMENTS,
+            min(MAX_FRAGMENTS, self.settings.roche_fragment_count),
+        )

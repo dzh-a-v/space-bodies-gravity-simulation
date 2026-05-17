@@ -103,11 +103,13 @@ class MainWindow(QMainWindow):
         time_step: float,
         time_scale: float,
         fragment_count: int,
+        roche_fragment_count: int,
         max_objects: int,
     ) -> None:
         self.engine.state.settings.time_step = time_step
         self.engine.state.settings.time_scale = time_scale
         self.engine.state.settings.fragment_count = fragment_count
+        self.engine.state.settings.roche_fragment_count = roche_fragment_count
         self.engine.state.settings.max_objects = max_objects
 
     def _set_texture_rotation_enabled(self, enabled: bool) -> None:

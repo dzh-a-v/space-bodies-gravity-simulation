@@ -5103,3 +5103,24 @@ ___
 Проверка: `python -m pytest -q` прошёл успешно.
 ___
 ___
+- add separate Roche fragment count setting in UI. Collision fragmentation must use 2..100, Roche fragmentation must use 4..100. Remove silent max(settings.fragment_count, MIN_ROCHE_FRAGMENTS) behavior and pass roche_fragment_count explicitly.
+  where to find:
+  - program/src/gravity_sim/core/system_state.py    SimulationSettings currently has only fragment_count
+  - program/src/gravity_sim/ui/controls_panel.py    one Fragments spinbox with range 2..100
+  - program/src/gravity_sim/physics/collisions.py    uses settings.fragment_count
+  - program/src/gravity_sim/physics/roche.py    currently uses max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)
+___
+Реализовал отдельную настройку для Roche-фрагментации.
+
+Теперь:
+- В UI есть два поля: `Collision fragments` с диапазоном `2..100` и `Roche fragments` с диапазоном `4..100`.
+- `SimulationSettings` хранит отдельное поле `roche_fragment_count`.
+- `collisions.py` продолжает использовать `settings.fragment_count`.
+- `roche.py` использует `settings.roche_fragment_count`; скрытый `max(settings.fragment_count, MIN_ROCHE_FRAGMENTS)` удалён.
+- `engine.step()` валидирует Roche-count отдельно с минимумом `4`.
+
+Добавил тест, который проверяет, что Roche использует именно отдельную настройку, даже если collision fragments выставлен иначе.
+
+Проверка: `python -m pytest -q` прошёл успешно.
+___
+___
