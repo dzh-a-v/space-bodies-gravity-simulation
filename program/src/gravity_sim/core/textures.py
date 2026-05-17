@@ -11,6 +11,7 @@ RESERVED_REAL_BODY_TEXTURES: frozenset[Texture] = frozenset(
         "earth.png",
         "mars.png",
         "mercury.png",
+        "moon.png",
         "venus.png",
     }
 )
