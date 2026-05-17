@@ -13,9 +13,9 @@ from gravity_sim.core.vector import Vector3, norm, vector3
 
 ATTRACTOR_IMPULSE_SPEED_FRACTION = 0.5
 ATTRACTOR_IMPULSE_SECONDS = 1.0
-COLLISION_SPREAD_SPEED_FRACTION = 1.5
+COLLISION_SPREAD_SPEED_FRACTION = 0.25
 COLLISION_SPREAD_RANDOM_FACTOR_MIN = 0.5
-COLLISION_SPREAD_RANDOM_FACTOR_MAX = 1.5
+COLLISION_SPREAD_RANDOM_FACTOR_MAX = 2.5
 COLLISION_SPREAD_IMPULSE_SECONDS = 1.0
 
 
@@ -70,11 +70,11 @@ def create_fragments(
         if actual_count == 1:
             offsets.append(vector3([0.0, 0.0, 0.0]))
             continue
-        cos_theta = 1.0 - 2.0 * (index + 0.5) / actual_count
-        sin_theta = sqrt(max(0.0, 1.0 - cos_theta * cos_theta))
-        phi = _GOLDEN_ANGLE * index
-        direction = vector3([sin_theta * cos(phi), sin_theta * sin(phi), cos_theta])
-        radial = ((index + 0.5) / actual_count) ** (1.0 / 3.0)
+        z = rng.uniform(-1.0, 1.0)
+        theta = rng.uniform(0.0, 2.0 * pi)
+        xy_radius = sqrt(max(0.0, 1.0 - z * z))
+        direction = vector3([xy_radius * cos(theta), xy_radius * sin(theta), z])
+        radial = rng.random() ** (1.0 / 3.0)
         offsets.append(direction * radial)
 
     # The cloud sits inside the parent's original radius — fragments occupy
