@@ -9,3 +9,10 @@ __pycache__/
 
 # settings.local.json
 .claude/
+
+coll-prompts.md
+AGENTS.md
+instructions.md
+TODO.md
+plan/
+out/
