@@ -126,12 +126,12 @@ def test_fragments_keep_parent_texture():
     assert {fragment.texture for fragment in fragments} == {parent.texture}
 
 
-def test_fragments_do_not_inherit_reserved_real_body_texture():
-    parent = Body("Earth", 9e15, 9e3, [0, 0, 0], [0, 0, 0], texture="earth.png")
+def test_fragments_inherit_reserved_real_body_texture():
+    parent = Body("Moon", 9e15, 9e3, [0, 0, 0], [0, 0, 0], texture="moon.png")
 
     fragments = create_fragments(parent, 3, set())
 
-    assert {fragment.texture for fragment in fragments} == {None}
+    assert {fragment.texture for fragment in fragments} == {parent.texture}
 
 
 def test_merged_body_is_white():
