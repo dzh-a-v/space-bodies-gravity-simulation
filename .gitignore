@@ -16,3 +16,7 @@ instructions.md
 TODO.md
 plan/
 out/
+
+program/build/
+program/dist/
+program/*.spec
