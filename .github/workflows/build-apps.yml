@@ -27,7 +27,7 @@ jobs:
           - os: macos-15
             artifact: GravitySim-macos-arm64
 
-          - os: macos-13
+          - os: macos-15-intel
             artifact: GravitySim-macos-x64
 
     defaults:
@@ -70,7 +70,15 @@ jobs:
         run: |
           pytest
 
-      - name: Build app with PyInstaller
+      - name: Build app with PyInstaller on Linux
+        if: runner.os == 'Linux'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          xvfb-run -a pyinstaller --noconfirm --clean --onedir --windowed --name GravitySim --collect-data gravity_sim --collect-all PySide6 --collect-all pyqtgraph src/gravity_sim/main.py
+
+      - name: Build app with PyInstaller on Windows and macOS
+        if: runner.os != 'Linux'
         run: |
           pyinstaller --noconfirm --clean --onedir --windowed --name GravitySim --collect-data gravity_sim --collect-all PySide6 --collect-all pyqtgraph src/gravity_sim/main.py
 
